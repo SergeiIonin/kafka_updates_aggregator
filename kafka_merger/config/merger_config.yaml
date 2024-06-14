@@ -1,3 +1,0 @@
-kafka_merger:
-  topics: [topic1 topic2]
-  hostname: localhost:29092

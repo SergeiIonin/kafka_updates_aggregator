@@ -19,8 +19,8 @@ func main() {
 	if err != nil {
 		log.Fatalf("Error creating merger_config: %v", err)
 	}
-
 	configFile, err := os.ReadFile(configPath)
+
 	var kafkaMergerConfig infra.KafkaMergerConfig
 	err = yaml.Unmarshal(configFile, &kafkaMergerConfig)
 	if err != nil {
