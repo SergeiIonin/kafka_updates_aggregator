@@ -3,166 +3,150 @@ package test
 import (
 	"context"
 	"fmt"
+	"github.com/docker/docker/client"
 	"github.com/segmentio/kafka-go"
-	"gopkg.in/yaml.v3"
-	"kafka_updates_aggregator/kafka_merger/infra"
-	"kafka_updates_aggregator/kafka_merger/infra/kafka/merger"
+	merger "kafka_updates_aggregator/kafka_merger/infra/kafka/merger"
+	"kafka_updates_aggregator/kafka_merger/infra/kafka/merger/test/testutils"
 	"log"
-	"math/rand"
-	"os"
-	"sync"
+	"slices"
 	"testing"
 	"time"
 )
 
 var (
-	configTplPath string
-	valuesPath    string
-	configPath    string
-	configFile    []byte
-	brokers       []string
-	kafkaClient   *kafka.Client
-	testTopics    []string
+	kafkaBroker       = "localhost:9092"
+	kafkaAddr         = kafka.TCP(kafkaBroker)
+	topics            = []string{"test_1", "test_2", "test_3"}
+	mergedSourceTopic = "test_merged"
+	msgsPerTopic      = 7
+	numTopics         = len(topics)
+	kafka_client      *kafka.Client
+	containerId       string
+	err               error
+	dockerClient      *client.Client
 )
 
 func init() {
-	pwd, _ := os.Getwd()
-	configTplPath = fmt.Sprintf("%s/templates/merger_test_config_template.yaml", pwd)
-	valuesPath = fmt.Sprintf("%s/test_values.yaml", pwd)
-	configPath = fmt.Sprintf("%s/merger_test_config.yaml", pwd)
-
-	configReader := infra.NewConfigReader()
-
-	err := configReader.ReadConfig(configTplPath, valuesPath, configPath)
+	dockerClient, err = client.NewClientWithOpts(client.WithVersion("1.45"))
 	if err != nil {
-		log.Fatalf("Error creating merger_config: %v", err)
+		log.Printf("error creating docker client: %s", err.Error())
+		panic(err)
 	}
-	configFile, err = os.ReadFile(configPath)
+	containerId, err = testutils.CreateKafkaWithKRaftContainer(dockerClient)
+	if err != nil {
+		log.Fatalf("could not create container %v", err)
+	}
 
-	// kafka setup
-	brokers = []string{"localhost:9092"}
-	kafkaClient = &kafka.Client{
-		Addr:      kafka.TCP(brokers[0]),
+	log.Printf("Container ID: %s", containerId)
+
+	kafka_client = &kafka.Client{
+		Addr:      kafkaAddr,
 		Transport: nil,
 	}
 
-	_, err = kafkaClient.Heartbeat(context.Background(), &kafka.HeartbeatRequest{
-		Addr:            kafka.TCP(brokers[0]),
-		GroupID:         "",
-		GenerationID:    0,
-		MemberID:        "",
-		GroupInstanceID: "",
-	})
-	if err != nil {
-		log.Fatal("failed to heartbeat:", err)
-	}
-	log.Println("Heartbeat is successful")
+	allTopics := append(topics, mergedSourceTopic)
 
-	// create test topics
-	testTopics = []string{"test_1", "test_2", "test_3"}
-	kafkaTopics := make([]kafka.TopicConfig, len(testTopics))
-	for i, topic := range testTopics {
-		kafkaTopics[i] = kafka.TopicConfig{
+	topicConfigs := make([]kafka.TopicConfig, len(allTopics))
+	for i, topic := range allTopics {
+		topicConfigs[i] = kafka.TopicConfig{
 			Topic:             topic,
 			NumPartitions:     1,
 			ReplicationFactor: 1,
 		}
 	}
 
-	_, err = kafkaClient.CreateTopics(context.Background(), &kafka.CreateTopicsRequest{
-		Addr:         kafka.TCP(brokers[0]),
-		Topics:       kafkaTopics,
-		ValidateOnly: false,
-	})
-	if err != nil {
-		log.Fatalf("failed to create topics: %v, %v", testTopics, err)
+	if _, err = kafka_client.CreateTopics(context.Background(), &kafka.CreateTopicsRequest{
+		kafkaAddr,
+		topicConfigs,
+		false,
+	},
+	); err != nil {
+		log.Fatalf("could not create topics %v", err)
 	}
 
-}
-
-func TestKafkaMerger_test(t *testing.T) {
-	var kafkaMergerConfig infra.KafkaMergerConfig
-	err := yaml.Unmarshal(configFile, &kafkaMergerConfig)
-	if err != nil {
-		log.Fatalf("Error parsing kafkaMergerConfig file: %v", err)
-	}
-	merger := merger.NewKafkaMerger(kafkaMergerConfig)
-
-	mergedSourceTopic := kafkaMergerConfig.KafkaMerger.MergedSourceTopic
-	_, err = kafkaClient.CreateTopics(context.Background(), &kafka.CreateTopicsRequest{
-		Addr: kafka.TCP(brokers[0]),
-		Topics: []kafka.TopicConfig{
-			{
-				Topic:             mergedSourceTopic,
-				NumPartitions:     1,
-				ReplicationFactor: 1,
-			},
+	testWriter := testutils.KafkaTestWriter{
+		Writer: &kafka.Writer{
+			Addr:     kafkaAddr,
+			Balancer: &kafka.LeastBytes{},
 		},
-		ValidateOnly: false,
-	})
+	}
+
+	kafkaMsgs := make([]kafka.Message, 0, numTopics*msgsPerTopic)
+	for _, topic := range topics {
+		kafkaMsgs = append(kafkaMsgs, testWriter.MakeMessagesForTopic(topic, msgsPerTopic)...)
+	}
+	if err := testWriter.Write(kafkaMsgs); err != nil {
+		log.Fatalf("could not write messages %v", err)
+	}
+	err := testWriter.Close()
 	if err != nil {
-		log.Fatalf("failed to create merged_source_topic: %s, %v", mergedSourceTopic, err)
+		log.Fatalf("could not close writer %v", err)
+		return
 	}
-
-	writeToTopics(testTopics)
-
-	name := "kafka_merge_test"
-
-	t.Run(name, func(t *testing.T) {
-		config := merger.ReaderConfig("test_1")
-		reader := kafka.NewReader(config)
-		msgs := make([]kafka.Message, 50)
-
-		ctx, cancel := context.WithCancel(context.Background())
-		defer cancel()
-
-		go func() {
-			select {
-			case <-time.After(15 * time.Second):
-				t.Logf("Test finished")
-				t.Logf("Messages: %v", msgs)
-				cancel()
-				return
-			}
-		}()
-
-		go merger.ConsumeTopic(reader, msgs, ctx)
-		t.Fatal("Test failed")
-	})
 }
 
-func writeToTopics(topics []string) {
-	wg := &sync.WaitGroup{}
-	wg.Add(len(topics))
-	for _, t := range topics {
-		w := kafka.Writer{
-			Addr:  kafka.TCP(brokers[0]),
-			Topic: t,
-		}
-		go writeToTopic(&w, wg)
+// todo add test_containers support and ensure test topics exist and have messages before the test runs
+func TestKafkaMerger_test(t *testing.T) {
+	cleanup := func() {
+		testutils.CleanupAndGracefulShutdown(t, dockerClient, containerId)
 	}
-	wg.Wait()
-}
 
-func writeToTopic(w *kafka.Writer, wg *sync.WaitGroup) {
-	for i := 0; i < 5; i++ {
-		millisRand := rand.Intn(50)
-		time.Sleep(time.Duration(millisRand))
-		topic := w.Topic
-		msg := kafka.Message{
-			Key:   []byte(fmt.Sprintf("Key-%s-%d", topic, i)),
-			Value: []byte(fmt.Sprintf("Value-%s-%d", topic, i)),
-		}
-		err := w.WriteMessages(context.Background(), msg)
-		if err != nil {
-			log.Printf("Error writing message to topic %s: %v", topic, err)
-		}
+	//defer cleanup() // fixme it'd be great to rm containers in case t.Cleanup won't affect them
+	t.Cleanup(cleanup)
+
+	merger := merger.KafkaMerger{
+		Brokers:           []string{kafkaBroker},
+		Topics:            topics,
+		GroupId:           fmt.Sprintf("new_%s", time.Now().String()),
+		MergedSourceTopic: mergedSourceTopic,
 	}
-	wg.Done()
-	defer func() {
-		err := w.Close()
-		if err != nil {
-			log.Printf("Error closing writer: %v", err)
+
+	ctx, cancel := context.WithCancel(context.Background())
+
+	go func() {
+		select {
+		case <-time.After(30 * time.Second):
+			t.Logf("30 seconds elapsed")
+			cancel()
+			return
 		}
 	}()
+
+	merger.Merge(ctx)
+
+	log.Printf("Merged source topic: %s", mergedSourceTopic)
+
+	testReader := testutils.KafkaTestReader{
+		kafka.NewReader(kafka.ReaderConfig{
+			Brokers:  []string{kafkaBroker},
+			Topic:    mergedSourceTopic,
+			MinBytes: 10e3, // 10KB
+			MaxBytes: 10e6, // 10MB
+		}),
+	}
+
+	numMsgsTotal := msgsPerTopic * numTopics
+	count := 0
+	messages, err := testReader.Read(numMsgsTotal, &count)
+
+	if err != nil {
+		log.Printf("error reading messages %v", err)
+	}
+	t.Logf("Messages: %d", count)
+	if count != numMsgsTotal {
+		t.Fatalf("Expected %d messages, got %d", numMsgsTotal, count)
+	}
+
+	offsetsPerTopicMap := testutils.GetOffsetsPerTopic(messages)
+	offsetsPerTopic := make([]int64, msgsPerTopic)
+	sorted := false
+	for _, topic := range topics {
+		offsetsPerTopic = offsetsPerTopicMap[topic]
+		log.Printf("Topic: %s, Offsets: %v", topic, offsetsPerTopic)
+		sorted = slices.IsSorted(offsetsPerTopic)
+		if !sorted {
+			t.Fatalf("Offsets for topic %s are not sorted", topic)
+		}
+	}
+
 }

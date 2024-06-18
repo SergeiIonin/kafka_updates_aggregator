@@ -2,143 +2,104 @@ package merger
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"github.com/segmentio/kafka-go"
-	"kafka_updates_aggregator/kafka_merger/infra"
 	"log"
+	"sync"
 )
 
 type KafkaMerger struct {
-	Config infra.KafkaMergerConfig
-	Writer kafka.Writer
+	Brokers           []string
+	Topics            []string
+	GroupId           string
+	MergedSourceTopic string
 }
 
-// todo defer Close of readers and writer, handle errors
+func (merger *KafkaMerger) Merge(ctx context.Context) {
+	wg := &sync.WaitGroup{}
+	wg.Add(len(merger.Topics) * 2)
 
-func NewKafkaMerger(config infra.KafkaMergerConfig) *KafkaMerger {
-	writer := kafka.Writer{
-		Addr:  kafka.TCP(config.KafkaMerger.Hostname),
-		Topic: config.KafkaMerger.MergedSourceTopic,
-	}
-	return &KafkaMerger{
-		Config: config,
-		Writer: writer,
-	}
-}
-
-func (km *KafkaMerger) ReaderConfig(topic string) kafka.ReaderConfig {
-	return kafka.ReaderConfig{
-		Brokers:  []string{km.Config.KafkaMerger.Hostname},
-		Topic:    topic,
-		GroupID:  fmt.Sprintf("merger_group_new_%s", topic), // fixme
-		MinBytes: 10e3,                                      // 10KB
-		MaxBytes: 10e6,                                      // 10MB
-	}
-}
-
-func (km *KafkaMerger) consumeTopic(topic string, messageChan chan<- kafka.Message) {
-	config := km.ReaderConfig(topic)
-	log.Printf("[KAFKA_MERGER] reader config %v", config)
-	log.Println("-----------------------")
-	reader := kafka.NewReader(config)
-	log.Printf("[KAFKA_MERGER] reader info %v", reader.Stats())
-	log.Println("-----------------------")
-	for {
-		log.Printf("[KAFKA_MERGER] consuming new message from topic %s", topic)
-		m, err := reader.ReadMessage(context.Background())
-		if err != nil {
-			log.Fatalf("[KAFKA_MERGER] failed to read message: %v", err)
+	createReader := func(topic string, groupId string) (reader *kafka.Reader) {
+		config := kafka.ReaderConfig{
+			Brokers:  merger.Brokers,
+			Topic:    topic,
+			GroupID:  groupId, // fixme
+			MinBytes: 10e3,    // 10KB
+			MaxBytes: 10e6,    // 10MB
 		}
-		log.Printf("message at topic/partition/offset %v/%v/%v: %s = %s\n",
-			m.Topic, m.Partition, m.Offset, string(m.Key), string(m.Value))
-
-		m.Headers = append(m.Headers, kafka.Header{"origin", []byte(topic)})
-		messageChan <- m
+		return kafka.NewReader(config)
 	}
-	defer reader.Close()
-}
 
-func (km *KafkaMerger) WriteToMergedSource(messageChan <-chan kafka.Message) {
-	for {
-		select {
-		case m := <-messageChan:
-			if err := km.Writer.WriteMessages(context.Background(), m); err != nil {
-				log.Fatal("failed to write message:", err) // todo fatal?
-			}
+	createWriter := func(topic string) (writer *kafka.Writer) {
+		return &kafka.Writer{
+			Addr:     kafka.TCP(merger.Brokers[0]),
+			Topic:    topic,
+			Balancer: &kafka.LeastBytes{},
 		}
 	}
-}
 
-func (km *KafkaMerger) Consume() {
-	for _, topic := range km.Config.KafkaMerger.SourceTopics {
-		log.Printf("[KAFKA_MERGER] consuming topic %s", topic)
-		go func(topic string) {
-			config := km.ReaderConfig(topic)
-			log.Printf("[KAFKA_MERGER] reader config %v", config)
-			log.Println("-----------------------")
-			reader := kafka.NewReader(config)
-			log.Printf("[KAFKA_MERGER] reader info %v", reader.Stats())
-			log.Println("-----------------------")
-			for {
-				log.Printf("[KAFKA_MERGER] consuming new message from topic %s", topic)
-				m, err := reader.ReadMessage(context.Background())
-				if err != nil {
-					log.Fatalf("[KAFKA_MERGER] failed to read message: %v", err)
+	write := func(writer *kafka.Writer, ch <-chan kafka.Message) {
+		for {
+			select {
+			case m, _ := <-ch:
+				log.Printf("writing message from topic %s, %s", m.Topic, string(m.Value))
+				if err := writer.WriteMessages(ctx, m); err != nil {
+					log.Fatalf("failed to write message: %v", err)
 				}
-				log.Printf("message at topic/partition/offset %v/%v/%v: %s = %s\n",
-					m.Topic, m.Partition, m.Offset, string(m.Key), string(m.Value))
-
-				m.Headers = append(m.Headers, kafka.Header{"origin", []byte(topic)})
-			}
-			defer func() {
-				err := reader.Close()
-				if err != nil {
-					log.Printf("error closing reader: %v", err)
-				}
-			}()
-		}(topic)
-	}
-}
-
-func (km *KafkaMerger) ConsumeTopic(reader *kafka.Reader, msgs []kafka.Message, ctx context.Context) {
-	defer func() {
-		err := reader.Close()
-		if err != nil {
-			log.Printf("error closing reader: %v", err)
-		}
-	}()
-	topic := reader.Config().Topic
-	count := 0
-	for {
-		log.Printf("[KAFKA_MERGER] consuming new message from topic %s", topic)
-		//m, err := reader.ReadMessage(ctx)
-		m, err := reader.FetchMessage(ctx)
-		if err != nil {
-			log.Fatalf("[KAFKA_MERGER] failed to read message: %v", err)
-			/*if errors.As(err, context.Canceled) {
-				log.Printf("[KAFKA_MERGER] context canceled")
+			case <-ctx.Done():
+				log.Printf("Writer is canceled")
+				wg.Done()
 				return
-			}*/
-			return
+			}
 		}
-		err = reader.CommitMessages(ctx, m)
-		if err != nil {
-			log.Fatalf("[KAFKA_MERGER] failed to commit offset: %v", err)
+
+		for m := range ch {
+			log.Printf("writing message from topic %s, %s", m.Topic, string(m.Value))
+			if err := writer.WriteMessages(ctx, m); err != nil {
+				log.Fatalf("failed to write message: %v", err)
+			}
 		}
-		log.Printf("message at topic/partition/offset %v/%v/%v: %s = %s\n",
-			m.Topic, m.Partition, m.Offset, string(m.Key), string(m.Value))
-
-		m.Headers = append(m.Headers, kafka.Header{"origin", []byte(topic)})
-		msgs[count] = m
-		count++
 	}
-}
 
-func (k *KafkaMerger) Merge() {
-	messageChan := make(chan kafka.Message)
-	go k.WriteToMergedSource(messageChan)
-	for _, topic := range k.Config.KafkaMerger.SourceTopics {
-		log.Printf("[KAFKA_MERGER] consuming topic %s", topic)
-		go k.consumeTopic(topic, messageChan)
+	read := func(reader *kafka.Reader, ch chan<- kafka.Message) {
+		for {
+			m, err := reader.ReadMessage(ctx)
+			if err != nil {
+				if errors.Is(err, context.Canceled) {
+					log.Printf("Reader is canceled")
+					wg.Done()
+					//close(ch) // fixme the channel will be already closed, why?
+					return
+				}
+				log.Fatalf("failed to read message: %v", err)
+			}
+			log.Printf("message at topic/partition/offset %v/%v/%v: %s = %s\n",
+				m.Topic, m.Partition, m.Offset, string(m.Key), string(m.Value))
+			m.Headers = append(m.Headers, kafka.Header{
+				"initTopic", []byte(m.Topic),
+			})
+			m.Topic = ""
+			ch <- m
+		}
 	}
+
+	readers := make([]*kafka.Reader, len(merger.Topics))
+	writers := make([]*kafka.Writer, len(merger.Topics))
+	chans := make([]chan kafka.Message, len(merger.Topics))
+	for i, topic := range merger.Topics {
+		readers[i] = createReader(topic, fmt.Sprintf("%s_%d", merger.GroupId, i))
+		writers[i] = createWriter(merger.MergedSourceTopic)
+		chans[i] = make(chan kafka.Message, 100)
+	}
+
+	// messages from the same topic will be ordered in the merged topic
+
+	for i, _ := range merger.Topics {
+		go write(writers[i], chans[i])
+		go read(readers[i], chans[i])
+	}
+
+	wg.Wait()
+	log.Printf("Exiting merge")
 }
