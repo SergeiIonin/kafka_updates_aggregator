@@ -5,7 +5,3 @@ kafka_merger:
 {{end }}
   hostname: {{ .BrokerAddr }}
   merged_source_topic: {{ .MergedSourceTopic }}
-
-// todo add merged_sources_topic, rename topics to source_topics, rename hostname to brokers and make plural
-
-

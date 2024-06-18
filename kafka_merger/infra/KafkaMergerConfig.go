@@ -2,7 +2,8 @@ package infra
 
 type KafkaMergerConfig struct {
 	KafkaMerger struct {
-		Topics   []string `yaml:"topics"`
-		Hostname string   `yaml:"hostname"`
+		SourceTopics      []string `yaml:"source_topics"`
+		Hostname          string   `yaml:"hostname"`
+		MergedSourceTopic string   `yaml:"merged_source_topic"`
 	} `yaml:"kafka_merger"`
 }
