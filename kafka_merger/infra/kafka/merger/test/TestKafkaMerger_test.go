@@ -6,7 +6,7 @@ import (
 	"github.com/docker/docker/client"
 	"github.com/segmentio/kafka-go"
 	merger "kafka_updates_aggregator/kafka_merger/infra/kafka/merger"
-	"kafka_updates_aggregator/kafka_merger/infra/kafka/merger/test/testutils"
+	testutils "kafka_updates_aggregator/testutils"
 	"log"
 	"slices"
 	"testing"
