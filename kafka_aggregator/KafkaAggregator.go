@@ -8,8 +8,8 @@ import (
 )
 
 type KafkaAggregator struct {
-	kafka.Reader
-	kafka.Writer
+	*kafka.Reader
+	*kafka.Writer
 	SchemaService
 	Cache
 }
@@ -28,8 +28,8 @@ func (ka *KafkaAggregator) toMap(data []byte) map[string]interface{} {
 }
 
 func (ka *KafkaAggregator) ComposeMessageForSchema(id string, schema Schema) kafka.Message {
-	res := make(map[string]string)
-	for _, key := range schema.Keys {
+	res := make(map[string]any)
+	for _, key := range schema.Fields {
 		value, err := ka.Get(schema.Namespace, id, key)
 		if err != nil {
 			log.Printf("could not get value for key %s, %v", key, err)
@@ -71,7 +71,10 @@ func (ka *KafkaAggregator) WriteAggregate(id string, m kafka.Message) {
 	// Update cache
 	for k, nss := range fields2ns {
 		for _, ns := range nss {
-			ka.Update(ns, k, kvs[k].(string))
+			err := ka.Update(ns, k, kvs[k])
+			if err != nil {
+				log.Printf("could not update cache for ns %s, key %s, value %s, %v", ns, k, kvs[k], err)
+			}
 		}
 	}
 
@@ -85,14 +88,21 @@ func (ka *KafkaAggregator) WriteAggregate(id string, m kafka.Message) {
 		field2Schemas[field] = schemas
 	}
 
+	schemaMap := make(map[string]Schema)
+	for _, schemas := range field2Schemas {
+		for _, schema := range schemas {
+			schemaMap[schema.Id] = schema
+		}
+	}
 	ctx := context.Background()
 	// write kafka records for each schema
 	// todo it's better to ensure that we write only in case there's un update for at least one field of the schema
-	for _, schemas := range field2Schemas {
+	for _, schema := range schemaMap {
 		var msg kafka.Message
-		for _, schema := range schemas {
-			msg = ka.ComposeMessageForSchema(id, schema)
-			ka.WriteMessages(ctx, msg)
+		msg = ka.ComposeMessageForSchema(id, schema)
+		err := ka.WriteMessages(ctx, msg)
+		if err != nil {
+			log.Printf("could not write message %v", err)
 		}
 	}
 
@@ -100,14 +110,15 @@ func (ka *KafkaAggregator) WriteAggregate(id string, m kafka.Message) {
 
 // fixme temp struct
 type Schema struct {
+	Id        string
 	Namespace string
 	Topic     string
-	Keys      []string
+	Fields    []string
 }
 
 type SchemaService interface {
+	CreateSchema(schema Schema, namespace string) error
 	// returns a json/avro schemas for a given field
-	GetSchemasForNamespace(ns string) ([]Schema, error)
 	GetSchemasForField(field string) ([]Schema, error)
 	GetNamespacesForField(field string) ([]string, error)
 }
@@ -119,8 +130,8 @@ type SchemaService interface {
 type Cache interface {
 	CreateNamespace(ns string) error
 	DeleteNamespace(ns string) error
-	Create(ns string, id string, key string, value string) error
-	Get(ns string, id string, key string) (string, error)
-	Update(ns string, key string, value string) error
+	Create(ns string, id string, key string, value any) error
+	Get(ns string, id string, key string) (any, error)
+	Update(ns string, key string, value any) error
 	Delete(ns string, key string) error
 }
