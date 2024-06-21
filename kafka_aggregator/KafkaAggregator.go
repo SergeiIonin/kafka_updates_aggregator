@@ -3,6 +3,8 @@ package kafka_aggregator
 import (
 	"context"
 	"encoding/json"
+	"fmt"
+	"github.com/riferrei/srclient"
 	"github.com/segmentio/kafka-go"
 	"log"
 )
@@ -27,10 +29,51 @@ func (ka *KafkaAggregator) toMap(data []byte) map[string]interface{} {
 	return result
 }
 
-func (ka *KafkaAggregator) ComposeMessageForSchema(id string, schema Schema) kafka.Message {
+// todo combine fetching of topic, ns and fields
+// todo support AVRO and PROTOBUF
+/*func (ka *KafkaAggregator) getSchemaSubject(schema srclient.Schema) (subject string, err error) {
+	schemaType := schema.SchemaType()
+	if *schemaType != srclient.Json {
+		return "", fmt.Errorf("unsupported schema type %v", *schemaType)
+	}
+	// if schema has multiple References then they can be different in only Version (Subject and Name should be the same)
+	subject = schema.References()[0].Subject
+	return subject, nil
+}*/
+
+func (ka *KafkaAggregator) getSchemaFields(schema srclient.Schema) (fields []string, err error) {
+	schemaType := schema.SchemaType()
+	if *schemaType != srclient.Json {
+		return nil, fmt.Errorf("unsupported schema type %v", *schemaType)
+	}
 	res := make(map[string]any)
-	for _, key := range schema.Fields {
-		value, err := ka.Get(schema.Namespace, id, key)
+	err = json.Unmarshal([]byte(schema.Schema()), &res)
+	if err != nil {
+		return []string{}, fmt.Errorf("could not unmarshal schema %v", err)
+	}
+	fields = make([]string, 0, len(res))
+	for k, _ := range res {
+		fields = append(fields, k)
+	}
+	return fields, nil
+}
+
+func (ka *KafkaAggregator) ComposeMessageForSchema(id string, schema *srclient.Schema) kafka.Message {
+	res := make(map[string]any)
+	fields, err := ka.GetSchemaFields(schema)
+	if err != nil {
+		log.Fatalf("could not get fields for schema %v", err)
+	}
+	subject, err := ka.GetSchemaSubject(schema)
+	if err != nil {
+		log.Fatalf("could not get topic for schema %v", err)
+	}
+	namespace, err := ka.GetNamespaceBySubject(subject)
+	if err != nil {
+		log.Fatalf("could not get namespace for schema %v", err)
+	}
+	for _, key := range fields {
+		value, err := ka.Get(namespace, id, key)
 		if err != nil {
 			log.Printf("could not get value for key %s, %v", key, err)
 		}
@@ -43,7 +86,7 @@ func (ka *KafkaAggregator) ComposeMessageForSchema(id string, schema Schema) kaf
 	}
 
 	return kafka.Message{
-		Topic: schema.Topic,
+		Topic: subject,
 		Key:   []byte(id),
 		Value: payload,
 	}
@@ -79,7 +122,7 @@ func (ka *KafkaAggregator) WriteAggregate(id string, m kafka.Message) {
 	}
 
 	// Get all schemas for each field
-	field2Schemas := make(map[string][]Schema)
+	field2Schemas := make(map[string][]*srclient.Schema)
 	for _, field := range fields {
 		schemas, err := ka.GetSchemasForField(field)
 		if err != nil {
@@ -88,10 +131,10 @@ func (ka *KafkaAggregator) WriteAggregate(id string, m kafka.Message) {
 		field2Schemas[field] = schemas
 	}
 
-	schemaMap := make(map[string]Schema)
+	schemaMap := make(map[int]*srclient.Schema)
 	for _, schemas := range field2Schemas {
 		for _, schema := range schemas {
-			schemaMap[schema.Id] = schema
+			schemaMap[schema.ID()] = schema
 		}
 	}
 	ctx := context.Background()
@@ -105,33 +148,32 @@ func (ka *KafkaAggregator) WriteAggregate(id string, m kafka.Message) {
 			log.Printf("could not write message %v", err)
 		}
 	}
-
 }
 
-// fixme temp struct
-type Schema struct {
-	Id        string
-	Namespace string
-	Topic     string
-	Fields    []string
-}
-
+// Note that schema's subject is the same as schema's topic (which is the topic w/ the aggregated info, NOT any topic existed initially)
 type SchemaService interface {
-	CreateSchema(schema Schema, namespace string) error
-	// returns a json/avro schemas for a given field
-	GetSchemasForField(field string) ([]Schema, error)
+	SaveSchema(schema *srclient.Schema, namespace string) error
+	GetSchemaSubject(schema *srclient.Schema) (subject string, err error)
+	// returns a json/avro/protobuf schemas for a given field
+	GetSchemasForField(field string) ([]*srclient.Schema, error)
+	GetSchemaFields(schema *srclient.Schema) ([]string, error)
 	GetNamespacesForField(field string) ([]string, error)
+	GetNamespaceBySubject(subject string) (string, error)
 }
 
 // Cache has a namespace (e.g. `users`, `items`) which has an id. Within the namespace
 // KV pairs associated with the namespace are stored per each id.
 // E.g. for the `users` ns we could have `users:1` -> `{"name": "John", "age": 25, "balance": 1000, "last_deposit": 500}` etc
 // Above ns = users, id = 1, key = name/age/balance/last_deposit, value = John/25/1000/500
-type Cache interface {
+/*type Cache interface {
 	CreateNamespace(ns string) error
 	DeleteNamespace(ns string) error
 	Create(ns string, id string, key string, value any) error
 	Get(ns string, id string, key string) (any, error)
 	Update(ns string, key string, value any) error
 	Delete(ns string, key string) error
+}*/
+type Cache interface {
+	Get(ns string, id string, key string) (any, error)
+	Update(ns string, key string, value any) error
 }

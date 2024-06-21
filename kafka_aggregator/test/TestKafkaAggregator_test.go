@@ -4,22 +4,25 @@ import (
 	"context"
 	"encoding/json"
 	"github.com/docker/docker/client"
+	"github.com/riferrei/srclient"
 	"github.com/segmentio/kafka-go"
 	"kafka_updates_aggregator/kafka_aggregator"
+	"kafka_updates_aggregator/kafka_aggregator/schemaregistry"
 	"kafka_updates_aggregator/testutils"
 	"log"
 	"testing"
 )
 
 var (
-	kafkaBroker       = "localhost:9092"
-	kafkaAddr         = kafka.TCP(kafkaBroker)
-	mergedSourceTopic = "test_merged"
-	aggrTopic         = "user_balance_updates"
-	kafka_client      *kafka.Client
-	containerId       string
-	err               error
-	dockerClient      *client.Client
+	kafkaBroker          = "localhost:9092"
+	kafkaAddr            = kafka.TCP(kafkaBroker)
+	mergedSourceTopic    = "test_merged"
+	aggregateTopic       = "user_balance_updates"
+	kafka_client         *kafka.Client
+	containerId          string
+	err                  error
+	dockerClient         *client.Client
+	schemaRegistryClient srclient.ISchemaRegistryClient
 )
 
 func init() {
@@ -40,7 +43,7 @@ func init() {
 		Transport: nil,
 	}
 
-	allTopics := []string{aggrTopic, mergedSourceTopic}
+	allTopics := []string{aggregateTopic, mergedSourceTopic}
 
 	topicConfigs := make([]kafka.TopicConfig, len(allTopics))
 	for i, topic := range allTopics {
@@ -59,18 +62,20 @@ func init() {
 	); err != nil {
 		log.Fatalf("could not create topics %v", err)
 	}
+
+	schemaRegistryClient = srclient.CreateMockSchemaRegistryClient("http://localhost:8081")
 }
 
 func TestKafkaAggregator_test(t *testing.T) {
 	cleanup := func() {
 		testutils.CleanupAndGracefulShutdown(t, dockerClient, containerId)
 	}
-
 	//defer cleanup() // fixme it'd be great to rm containers in case t.Cleanup won't affect them
 	t.Cleanup(cleanup)
 
 	cache := NewCacheTest()
-	schemaService := NewSchemaServiceTest()
+	repo := NewSchemaRepoTest(aggregateTopic)
+	schemaService := &schemaregistry.SchemaRegistryService{schemaRegistryClient, repo}
 	kafkaReader := kafka.NewReader(kafka.ReaderConfig{
 		Brokers:  []string{kafkaBroker},
 		Topic:    mergedSourceTopic,
@@ -88,15 +93,32 @@ func TestKafkaAggregator_test(t *testing.T) {
 		cache,
 	}
 
-	schema := kafka_aggregator.Schema{
-		"schema_users_1",
-		"users",
-		aggrTopic,
-		[]string{"user_id", "balance", "deposit", "withdrawal"},
-	}
+	schemaRaw := `{
+		"type": "record",
+		"name": "user_balance_updates",
+		"fields": [
+			{"name": "user_id", "type": "string"},
+			{"name": "balance", "type": "int"},
+			{"name": "deposit", "type": "int"},
+			{"name": "withdrawal", "type": "int"}
+		]
+	}`
+
+	schema, err := schemaRegistryClient.CreateSchema(aggregateTopic, schemaRaw, srclient.Json, srclient.Reference{
+		Name:    aggregateTopic,
+		Subject: aggregateTopic,
+		Version: 0,
+	})
+	refs := schema.References()
+	refs = append(refs, srclient.Reference{
+		Name:    aggregateTopic,
+		Subject: aggregateTopic,
+		Version: 0,
+	})
 
 	userId := "bob"
-	schemaService.CreateSchema(schema, schema.Namespace)
+	schemaService.SaveSchema(schema, "users")
+
 	cache.CreateNamespace("users")
 	cache.Create("users", userId, "balance", 1000)
 	cache.Create("users", userId, "deposit", 500)
@@ -105,7 +127,7 @@ func TestKafkaAggregator_test(t *testing.T) {
 	payload := []byte(`{"balance": 1200, "deposit": 700, "isAuthenticated": true, "country": "Cordovia"}`)
 
 	message := kafka.Message{
-		Topic: schema.Topic,
+		Topic: aggregateTopic,
 		Key:   []byte(userId),
 		Value: payload,
 	}
@@ -114,7 +136,7 @@ func TestKafkaAggregator_test(t *testing.T) {
 	testReader := testutils.KafkaTestReader{
 		kafka.NewReader(kafka.ReaderConfig{
 			Brokers:  []string{kafkaBroker},
-			Topic:    aggrTopic,
+			Topic:    aggregateTopic,
 			MinBytes: 10e3, // 10KB
 			MaxBytes: 10e6, // 10MB
 		}),
@@ -133,7 +155,19 @@ func TestKafkaAggregator_test(t *testing.T) {
 	}
 	t.Logf("value: %v", value)
 	// fixme it's better to avoid float64 comparison
-	if value["balance"] != float64(1200) && value["deposit"] != float64(700) && value["withdrawal"] != float64(200) {
+	convertToInt := func(i any) int64 {
+		switch i.(type) {
+		case int:
+			return int64(i.(int))
+		case float64:
+			return int64(i.(float64))
+		}
+		t.Fatalf("unexpected type %T", i)
+		return -1
+	}
+
+	if convertToInt(value["balance"]) != 1200 && convertToInt(value["deposit"]) != 700 &&
+		convertToInt(value["withdrawal"]) != 200 {
 		t.Fatalf("unexpected values %v", value)
 	}
 
