@@ -7,6 +7,7 @@ import (
 	"github.com/riferrei/srclient"
 	"github.com/segmentio/kafka-go"
 	"kafka_updates_aggregator/kafka_aggregator"
+	"kafka_updates_aggregator/kafka_aggregator/schemaregistry"
 	"kafka_updates_aggregator/testutils"
 	"log"
 	"testing"
@@ -66,15 +67,15 @@ func init() {
 }
 
 func TestKafkaAggregator_test(t *testing.T) {
-	/*cleanup := func() {
+	cleanup := func() {
 		testutils.CleanupAndGracefulShutdown(t, dockerClient, containerId)
 	}
-
 	//defer cleanup() // fixme it'd be great to rm containers in case t.Cleanup won't affect them
-	t.Cleanup(cleanup)*/
+	t.Cleanup(cleanup)
 
 	cache := NewCacheTest()
-	schemaService := NewSchemaServiceTest(aggregateTopic)
+	repo := NewSchemaRepoTest(aggregateTopic)
+	schemaService := &schemaregistry.SchemaRegistryService{schemaRegistryClient, repo}
 	kafkaReader := kafka.NewReader(kafka.ReaderConfig{
 		Brokers:  []string{kafkaBroker},
 		Topic:    mergedSourceTopic,
@@ -154,7 +155,19 @@ func TestKafkaAggregator_test(t *testing.T) {
 	}
 	t.Logf("value: %v", value)
 	// fixme it's better to avoid float64 comparison
-	if value["balance"] != float64(1200) && value["deposit"] != float64(700) && value["withdrawal"] != float64(200) {
+	convertToInt := func(i any) int64 {
+		switch i.(type) {
+		case int:
+			return int64(i.(int))
+		case float64:
+			return int64(i.(float64))
+		}
+		t.Fatalf("unexpected type %T", i)
+		return -1
+	}
+
+	if convertToInt(value["balance"]) != 1200 && convertToInt(value["deposit"]) != 700 &&
+		convertToInt(value["withdrawal"]) != 200 {
 		t.Fatalf("unexpected values %v", value)
 	}
 
