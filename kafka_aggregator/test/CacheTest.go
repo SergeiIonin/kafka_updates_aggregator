@@ -10,26 +10,25 @@ func NewCacheTest() *CacheTest {
 	}
 }
 
-func (cache *CacheTest) CreateNamespace(ns string) error {
-	cache.Mapping[ns] = make(map[string]any)
+func (cache *CacheTest) Add(id string, key string, value any) error {
+	_, ok := cache.Mapping[id]
+	if !ok {
+		cache.Mapping[id] = make(map[string]any)
+	}
+	cache.Mapping[id][key] = value
 	return nil
 }
-func (cache *CacheTest) DeleteNamespace(ns string) error {
-	delete(cache.Mapping, ns)
+
+func (cache *CacheTest) Get(id string, key string) (any, error) {
+	return cache.Mapping[id][key], nil
+}
+
+func (cache *CacheTest) Update(id string, key string, value any) error {
+	cache.Mapping[id][key] = value
 	return nil
 }
-func (cache *CacheTest) Create(ns string, id string, key string, value any) error {
-	cache.Mapping[ns][key] = value
-	return nil
-}
-func (cache *CacheTest) Get(ns string, id string, key string) (any, error) {
-	return cache.Mapping[ns][key], nil
-}
-func (cache *CacheTest) Update(ns string, key string, value any) error {
-	cache.Mapping[ns][key] = value
-	return nil
-}
-func (cache *CacheTest) Delete(ns string, key string) error {
-	delete(cache.Mapping[ns], key)
+
+func (cache *CacheTest) Delete(id string, key string) error {
+	delete(cache.Mapping[id], key)
 	return nil
 }

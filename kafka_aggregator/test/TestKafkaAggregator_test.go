@@ -117,12 +117,11 @@ func TestKafkaAggregator_test(t *testing.T) {
 	})
 
 	userId := "bob"
-	schemaService.SaveSchema(schema, "users")
+	schemaService.SaveSchema(schema)
 
-	cache.CreateNamespace("users")
-	cache.Create("users", userId, "balance", 1000)
-	cache.Create("users", userId, "deposit", 500)
-	cache.Create("users", userId, "withdrawal", 200)
+	cache.Add(userId, "balance", 1000)
+	cache.Add(userId, "deposit", 500)
+	cache.Add(userId, "withdrawal", 200)
 
 	payload := []byte(`{"balance": 1200, "deposit": 700, "isAuthenticated": true, "country": "Cordovia"}`)
 

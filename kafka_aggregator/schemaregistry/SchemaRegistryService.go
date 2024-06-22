@@ -18,21 +18,11 @@ func NewSchemaRegistryService(schemaRegistryUrl string) *SchemaRegistryService {
 	}
 }
 
-func (srs *SchemaRegistryService) SaveSchema(schema *srclient.Schema, namespace string) error {
+func (srs *SchemaRegistryService) SaveSchema(schema *srclient.Schema) error {
 	fields, _ := srs.GetSchemaFields(schema)
-	subject, err := srs.GetSchemaSubject(schema)
-	if err != nil {
-		return fmt.Errorf("could not get subject for schema %v", err)
-	}
 	for _, field := range fields {
-		if err = srs.Repo.AddSchemaToField(field, schema); err != nil {
+		if err := srs.Repo.AddSchemaToField(field, schema); err != nil {
 			return fmt.Errorf("could not add schema to field %v", err)
-		}
-		if err = srs.Repo.AddNamespaceToField(field, namespace); err != nil {
-			return fmt.Errorf("could not add namespace to field %v", err)
-		}
-		if err = srs.Repo.AddSubjectToNamespace(subject, namespace); err != nil {
-			return fmt.Errorf("could not add subject to namespace %v", err)
 		}
 	}
 	return nil
@@ -83,20 +73,8 @@ func (srs *SchemaRegistryService) GetSchemaFields(schema *srclient.Schema) ([]st
 	return fields, nil
 }
 
-func (srs *SchemaRegistryService) GetNamespacesForField(field string) ([]string, error) {
-	return srs.Repo.GetNamespacesByField(field)
-}
-
-func (srs *SchemaRegistryService) GetNamespaceBySubject(subject string) (string, error) {
-	return srs.Repo.GetNamespaceBySubject(subject)
-}
-
 type SchemaRepo interface {
 	AddSchemaToField(field string, schema *srclient.Schema) error
-	AddNamespaceToField(field string, namespace string) error
-	AddSubjectToNamespace(subject string, namespace string) error
 	GetSchemasByField(field string) ([]*srclient.Schema, error)
-	GetNamespacesByField(field string) ([]string, error)
-	GetNamespaceBySubject(subject string) (string, error)
 	GetSubjectBySchema(schema *srclient.Schema) (string, error)
 }
