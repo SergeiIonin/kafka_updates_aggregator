@@ -20,26 +20,14 @@ func (ka *KafkaAggregator) Listen() {
 	// todo implement
 }
 
-func (ka *KafkaAggregator) toMap(data []byte) map[string]interface{} {
-	var result map[string]interface{}
+func (ka *KafkaAggregator) toMap(data []byte) map[string]any {
+	var result map[string]any
 	err := json.Unmarshal(data, &result)
 	if err != nil {
 		log.Printf("could not unmarshal message %v", err) // fixme fatal?
 	}
 	return result
 }
-
-// todo combine fetching of topic, ns and fields
-// todo support AVRO and PROTOBUF
-/*func (ka *KafkaAggregator) getSchemaSubject(schema srclient.Schema) (subject string, err error) {
-	schemaType := schema.SchemaType()
-	if *schemaType != srclient.Json {
-		return "", fmt.Errorf("unsupported schema type %v", *schemaType)
-	}
-	// if schema has multiple References then they can be different in only Version (Subject and Name should be the same)
-	subject = schema.References()[0].Subject
-	return subject, nil
-}*/
 
 func (ka *KafkaAggregator) getSchemaFields(schema srclient.Schema) (fields []string, err error) {
 	schemaType := schema.SchemaType()
@@ -68,12 +56,8 @@ func (ka *KafkaAggregator) ComposeMessageForSchema(id string, schema *srclient.S
 	if err != nil {
 		log.Fatalf("could not get topic for schema %v", err)
 	}
-	namespace, err := ka.GetNamespaceBySubject(subject)
-	if err != nil {
-		log.Fatalf("could not get namespace for schema %v", err)
-	}
 	for _, key := range fields {
-		value, err := ka.Get(namespace, id, key)
+		value, err := ka.Get(id, key)
 		if err != nil {
 			log.Printf("could not get value for key %s, %v", key, err)
 		}
@@ -101,23 +85,11 @@ func (ka *KafkaAggregator) WriteAggregate(id string, m kafka.Message) {
 		fields = append(fields, k)
 	}
 
-	// Get field -> namespaces map
-	fields2ns := make(map[string][]string)
-	for _, field := range fields {
-		namespaces, err := ka.GetNamespacesForField(field)
-		if err != nil {
-			log.Printf("could not get namespaces for field %s, %v", field, err)
-		}
-		fields2ns[field] = namespaces
-	}
-
 	// Update cache
-	for k, nss := range fields2ns {
-		for _, ns := range nss {
-			err := ka.Update(ns, k, kvs[k])
-			if err != nil {
-				log.Printf("could not update cache for ns %s, key %s, value %s, %v", ns, k, kvs[k], err)
-			}
+	for k, v := range kvs {
+		err := ka.Update(id, k, v)
+		if err != nil {
+			log.Printf("could not update cache for id %s, key %s, value %s, error: %v", id, k, v, err)
 		}
 	}
 
@@ -152,28 +124,15 @@ func (ka *KafkaAggregator) WriteAggregate(id string, m kafka.Message) {
 
 // Note that schema's subject is the same as schema's topic (which is the topic w/ the aggregated info, NOT any topic existed initially)
 type SchemaService interface {
-	SaveSchema(schema *srclient.Schema, namespace string) error
+	SaveSchema(schema *srclient.Schema) error
 	GetSchemaSubject(schema *srclient.Schema) (subject string, err error)
 	// returns a json/avro/protobuf schemas for a given field
 	GetSchemasForField(field string) ([]*srclient.Schema, error)
 	GetSchemaFields(schema *srclient.Schema) ([]string, error)
-	GetNamespacesForField(field string) ([]string, error)
-	GetNamespaceBySubject(subject string) (string, error)
 }
 
-// Cache has a namespace (e.g. `users`, `items`) which has an id. Within the namespace
-// KV pairs associated with the namespace are stored per each id.
-// E.g. for the `users` ns we could have `users:1` -> `{"name": "John", "age": 25, "balance": 1000, "last_deposit": 500}` etc
-// Above ns = users, id = 1, key = name/age/balance/last_deposit, value = John/25/1000/500
-/*type Cache interface {
-	CreateNamespace(ns string) error
-	DeleteNamespace(ns string) error
-	Create(ns string, id string, key string, value any) error
-	Get(ns string, id string, key string) (any, error)
-	Update(ns string, key string, value any) error
-	Delete(ns string, key string) error
-}*/
+// Cache is a plain storage from id to key-value pairs (e.g. userId -> {k0 -> v0, k1 -> v1, ...})
 type Cache interface {
-	Get(ns string, id string, key string) (any, error)
-	Update(ns string, key string, value any) error
+	Get(id string, key string) (any, error) // todo should id be any?
+	Update(id string, key string, value any) error
 }
