@@ -55,15 +55,15 @@ func (srs *SchemaRegistryService) GetSchemasForField(field string) ([]*srclient.
 	return srs.Repo.GetSchemasByField(field)
 }
 
-type FieldRepr struct {
+type fieldRepr struct {
 	Name string
 	Type string
 }
 
-type SchemaRepr struct {
+type schemaRepr struct {
 	Type   string
 	Name   string
-	Fields []FieldRepr
+	Fields []fieldRepr
 }
 
 func (srs *SchemaRegistryService) GetSchemaFields(schema *srclient.Schema) ([]string, error) {
@@ -71,7 +71,7 @@ func (srs *SchemaRegistryService) GetSchemaFields(schema *srclient.Schema) ([]st
 	if *schemaType != srclient.Json {
 		return nil, fmt.Errorf("unsupported schema type %v", *schemaType)
 	}
-	res := SchemaRepr{}
+	res := schemaRepr{}
 	err := json.Unmarshal([]byte(schema.Schema()), &res)
 	if err != nil {
 		return []string{}, fmt.Errorf("could not unmarshal schema %v", err)
