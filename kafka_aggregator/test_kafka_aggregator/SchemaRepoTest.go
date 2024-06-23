@@ -1,4 +1,4 @@
-package test
+package test_kafka_aggregator
 
 import "github.com/riferrei/srclient"
 

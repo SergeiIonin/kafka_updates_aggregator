@@ -1,4 +1,4 @@
-package test
+package test_kafka_aggregator
 
 type CacheTest struct {
 	Mapping map[string]map[string]any
