@@ -85,7 +85,7 @@ func init() {
 	}
 }
 
-// todo add test_containers support and ensure test topics exist and have messages before the test runs
+// todo add test_containers support and ensure test_kafka_aggregator topics exist and have messages before the test_kafka_aggregator runs
 func TestKafkaMerger_test(t *testing.T) {
 	cleanup := func() {
 		testutils.CleanupAndGracefulShutdown(t, dockerClient, containerId)
