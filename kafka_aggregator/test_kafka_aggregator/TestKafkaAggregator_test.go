@@ -4,25 +4,23 @@ import (
 	"context"
 	"encoding/json"
 	"github.com/docker/docker/client"
-	"github.com/riferrei/srclient"
 	"github.com/segmentio/kafka-go"
+	"kafka_updates_aggregator/domain"
 	"kafka_updates_aggregator/kafka_aggregator"
-	"kafka_updates_aggregator/kafka_aggregator/schemaregistry"
 	"kafka_updates_aggregator/testutils"
 	"log"
 	"testing"
 )
 
 var (
-	kafkaBroker          = "localhost:9092"
-	kafkaAddr            = kafka.TCP(kafkaBroker)
-	mergedSourceTopic    = "test_merged"
-	aggregateTopic       = "user_balance_updates"
-	kafka_client         *kafka.Client
-	containerId          string
-	err                  error
-	dockerClient         *client.Client
-	schemaRegistryClient srclient.ISchemaRegistryClient
+	kafkaBroker       = "localhost:9092"
+	kafkaAddr         = kafka.TCP(kafkaBroker)
+	mergedSourceTopic = "test_merged"
+	aggregateTopic    = "user_balance_updates"
+	kafka_client      *kafka.Client
+	containerId       string
+	err               error
+	dockerClient      *client.Client
 )
 
 func init() {
@@ -63,7 +61,6 @@ func init() {
 		log.Fatalf("could not create topics %v", err)
 	}
 
-	schemaRegistryClient = srclient.CreateMockSchemaRegistryClient("http://localhost:8081")
 }
 
 func TestKafkaAggregator_test(t *testing.T) {
@@ -73,9 +70,10 @@ func TestKafkaAggregator_test(t *testing.T) {
 	//defer cleanup() // fixme it'd be great to rm containers in case t.Cleanup won't affect them
 	t.Cleanup(cleanup)
 
-	cache := NewCacheTest()
-	repo := NewSchemaRepoTest(aggregateTopic)
-	schemaService := &schemaregistry.SchemaRegistryService{schemaRegistryClient, repo}
+	cache := NewFieldsCacheTest()
+	fieldToSchemasMap := make(map[string][]domain.Schema)
+	schemasReader := NewSchemasReaderTestImpl(fieldToSchemasMap)
+	schemasWriter := NewSchemasWriterTest(fieldToSchemasMap)
 	kafkaReader := kafka.NewReader(kafka.ReaderConfig{
 		Brokers:  []string{kafkaBroker},
 		Topic:    mergedSourceTopic,
@@ -89,7 +87,7 @@ func TestKafkaAggregator_test(t *testing.T) {
 	aggregator := kafka_aggregator.KafkaAggregator{
 		kafkaReader,
 		kafkaWriter,
-		schemaService,
+		schemasReader,
 		cache,
 	}
 
@@ -104,21 +102,21 @@ func TestKafkaAggregator_test(t *testing.T) {
 		]
 	}`
 
-	schema, err := schemaRegistryClient.CreateSchema(aggregateTopic, schemaRaw, srclient.Json, srclient.Reference{
-		Name:    aggregateTopic,
-		Subject: aggregateTopic,
-		Version: 0,
-	})
-	refs := schema.References()
-	refs = append(refs, srclient.Reference{
-		Name:    aggregateTopic,
-		Subject: aggregateTopic,
-		Version: 0,
-	})
+	schema := domain.Schema{
+		Subject: "user_balance_updates",
+		Version: 1,
+		ID:      1,
+		Fields:  []string{"user_id", "balance", "deposit", "withdrawal"},
+		Schema:  schemaRaw,
+	}
 
 	userId := "bob"
-	schemaService.SaveSchema(schema)
+	schemasWriter.AddSchemaToField("user_id", schema)
+	schemasWriter.AddSchemaToField("balance", schema)
+	schemasWriter.AddSchemaToField("deposit", schema)
+	schemasWriter.AddSchemaToField("withdrawal", schema)
 
+	cache.Add(userId, "user_id", "bob")
 	cache.Add(userId, "balance", 1000)
 	cache.Add(userId, "deposit", 500)
 	cache.Add(userId, "withdrawal", 200)
@@ -144,7 +142,7 @@ func TestKafkaAggregator_test(t *testing.T) {
 	count := 0
 	messages, err := testReader.Read(1, &count)
 	if err != nil {
-		t.Fatalf("could not read messages %v", err)
+		t.Fatalf("could not read messages: %v", err)
 	}
 
 	value := make(map[string]interface{})
@@ -153,7 +151,7 @@ func TestKafkaAggregator_test(t *testing.T) {
 		t.Fatalf("could not unmarshal message %v", err)
 	}
 	t.Logf("value: %v", value)
-	// fixme it's better to avoid float64 comparison
+
 	convertToInt := func(i any) int64 {
 		switch i.(type) {
 		case int:

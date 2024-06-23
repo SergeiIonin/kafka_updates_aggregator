@@ -4,20 +4,21 @@ import (
 	"context"
 	"encoding/json"
 	"github.com/segmentio/kafka-go"
+	"kafka_updates_aggregator/domain"
 	"log"
 )
 
 type KafkaSchemasHandler struct {
 	*kafka.Reader
-	SchemasDAO
+	SchemasWriter
 	*KeyTypes
 }
 
-func NewKafkaSchemasHandler(reader *kafka.Reader, writer SchemasDAO) *KafkaSchemasHandler {
+func NewKafkaSchemasHandler(kafkaReader *kafka.Reader, writer SchemasWriter) *KafkaSchemasHandler {
 	return &KafkaSchemasHandler{
-		Reader:     reader,
-		SchemasDAO: writer,
-		KeyTypes:   NewKeyTypes(),
+		Reader:        kafkaReader,
+		SchemasWriter: writer,
+		KeyTypes:      NewKeyTypes(),
 	}
 }
 
@@ -35,14 +36,26 @@ func (ksh *KafkaSchemasHandler) Run(ctx context.Context) {
 		}
 		switch keytype {
 		case ksh.SCHEMA:
-			id, err := ksh.SaveSchema(msg)
+			var schemaMsg SchemaMsg
+			err := json.Unmarshal(msg.Value, &schemaMsg)
+			if err != nil {
+				log.Printf("Error unmarshalling schemaMsg: %v", err)
+				continue
+			}
+			id, err := ksh.SaveSchema(schemaMsg)
 			if err != nil {
 				log.Printf("Error saving schema: %v", err)
 				continue
 			}
 			log.Printf("Saved schema with id: %v", id)
 		case ksh.DELETE_SUBJECT:
-			id, err := ksh.DeleteSchema(msg)
+			var deleteSubjectMsg DeleteSubjectMsg
+			err := json.Unmarshal(msg.Value, &deleteSubjectMsg)
+			if err != nil {
+				log.Printf("Error unmarshalling deleteSubjectMsg: %v", err)
+				continue
+			}
+			id, err := ksh.DeleteSchema(deleteSubjectMsg)
 			if err != nil {
 				log.Printf("Error deleting schema: %v", err)
 				continue
@@ -52,29 +65,37 @@ func (ksh *KafkaSchemasHandler) Run(ctx context.Context) {
 	}
 }
 
-func (ksh *KafkaSchemasHandler) SaveSchema(msg kafka.Message) (string, error) {
-	var schemaMsg SchemaMsg
-	err := json.Unmarshal(msg.Value, &schemaMsg)
+func getSchemaFromSchemaMsg(schemaMsg SchemaMsg) (domain.Schema, error) {
+	var schemaInternal SchemaInternal
+	err := json.Unmarshal([]byte(schemaMsg.Schema), &schemaInternal)
 	if err != nil {
-		log.Printf("Error unmarshalling schemaMsg: %v", err)
-		return "", err
+		log.Printf("Error unmarshalling SchemaMsg: %v", err)
+		return domain.Schema{}, err
 	}
-	return ksh.SchemasDAO.SaveSchema(schemaMsg.Subject, schemaMsg.Version, schemaMsg.ID, schemaMsg.Schema)
+	fields := make([]string, 0, len(schemaInternal.Fields))
+	for _, f := range schemaInternal.Fields {
+		fields = append(fields, f.Name)
+	}
+	return domain.Schema{
+		Subject: schemaMsg.Subject,
+		Version: schemaMsg.Version,
+		ID:      schemaMsg.ID,
+		Fields:  fields,
+		Schema:  schemaMsg.Schema,
+	}, nil
 }
 
-func (ksh *KafkaSchemasHandler) DeleteSchema(msg kafka.Message) (string, error) {
-	var deleteSubjectMsg DeleteSubjectMsg
-	err := json.Unmarshal(msg.Value, &deleteSubjectMsg)
+func (ksh *KafkaSchemasHandler) SaveSchema(msg SchemaMsg) (string, error) {
+	schema, err := getSchemaFromSchemaMsg(msg)
 	if err != nil {
-		log.Printf("Error unmarshalling deleteSubjectMsg: %v", err)
+		log.Printf("Error getting schema from schemaMsg: %v", err)
 		return "", err
 	}
-	return ksh.SchemasDAO.DeleteSchema(deleteSubjectMsg.Subject, deleteSubjectMsg.Version)
+	return ksh.SchemasWriter.SaveSchema(schema)
 }
 
-type SchemasDAO interface {
-	SaveSchema(subject string, version int, id int, schema string) (string, error)
-	DeleteSchema(subject string, version int) (string, error)
+func (ksh *KafkaSchemasHandler) DeleteSchema(msg DeleteSubjectMsg) (string, error) {
+	return ksh.SchemasWriter.DeleteSchema(msg.Subject, msg.Version)
 }
 
 type SchemaMsg struct {
@@ -82,6 +103,17 @@ type SchemaMsg struct {
 	Version int    `json:"version"`
 	ID      int    `json:"id"`
 	Schema  string `json:"schema"`
+}
+
+type SchemaInternal struct {
+	Type   string  `json:"type"`
+	Name   string  `json:"name"`
+	Fields []Field `json:"fields"`
+}
+
+type Field struct {
+	Name string `json:"name"`
+	Type string `json:"type"`
 }
 
 type DeleteSubjectMsg struct {

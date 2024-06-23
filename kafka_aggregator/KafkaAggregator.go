@@ -4,16 +4,16 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/riferrei/srclient"
 	"github.com/segmentio/kafka-go"
+	"kafka_updates_aggregator/domain"
 	"log"
 )
 
 type KafkaAggregator struct {
 	*kafka.Reader
 	*kafka.Writer
-	SchemaService
-	Cache
+	SchemasReader
+	FieldsCache
 }
 
 func (ka *KafkaAggregator) Listen() {
@@ -29,13 +29,9 @@ func (ka *KafkaAggregator) toMap(data []byte) map[string]any {
 	return result
 }
 
-func (ka *KafkaAggregator) getSchemaFields(schema srclient.Schema) (fields []string, err error) {
-	schemaType := schema.SchemaType()
-	if *schemaType != srclient.Json {
-		return nil, fmt.Errorf("unsupported schema type %v", *schemaType)
-	}
+func (ka *KafkaAggregator) getSchemaFields(schema domain.Schema) (fields []string, err error) {
 	res := make(map[string]any)
-	err = json.Unmarshal([]byte(schema.Schema()), &res)
+	err = json.Unmarshal([]byte(schema.Schema), &res)
 	if err != nil {
 		return []string{}, fmt.Errorf("could not unmarshal schema %v", err)
 	}
@@ -46,16 +42,10 @@ func (ka *KafkaAggregator) getSchemaFields(schema srclient.Schema) (fields []str
 	return fields, nil
 }
 
-func (ka *KafkaAggregator) ComposeMessageForSchema(id string, schema *srclient.Schema) kafka.Message {
+func (ka *KafkaAggregator) ComposeMessageForSchema(id string, schema domain.Schema) kafka.Message {
 	res := make(map[string]any)
-	fields, err := ka.GetSchemaFields(schema)
-	if err != nil {
-		log.Fatalf("could not get fields for schema %v", err)
-	}
-	subject, err := ka.GetSchemaSubject(schema)
-	if err != nil {
-		log.Fatalf("could not get topic for schema %v", err)
-	}
+	fields := schema.Fields
+	subject := schema.Subject
 	for _, key := range fields {
 		value, err := ka.Get(id, key)
 		if err != nil {
@@ -94,7 +84,7 @@ func (ka *KafkaAggregator) WriteAggregate(id string, m kafka.Message) {
 	}
 
 	// Get all schemas for each field
-	field2Schemas := make(map[string][]*srclient.Schema)
+	field2Schemas := make(map[string][]domain.Schema)
 	for _, field := range fields {
 		schemas, err := ka.GetSchemasForField(field)
 		if err != nil {
@@ -103,10 +93,10 @@ func (ka *KafkaAggregator) WriteAggregate(id string, m kafka.Message) {
 		field2Schemas[field] = schemas
 	}
 
-	schemaMap := make(map[int]*srclient.Schema)
+	schemaMap := make(map[int]domain.Schema)
 	for _, schemas := range field2Schemas {
 		for _, schema := range schemas {
-			schemaMap[schema.ID()] = schema
+			schemaMap[schema.ID] = schema
 		}
 	}
 	ctx := context.Background()
@@ -122,17 +112,12 @@ func (ka *KafkaAggregator) WriteAggregate(id string, m kafka.Message) {
 	}
 }
 
-// Note that schema's subject is the same as schema's topic (which is the topic w/ the aggregated info, NOT any topic existed initially)
-type SchemaService interface {
-	SaveSchema(schema *srclient.Schema) error
-	GetSchemaSubject(schema *srclient.Schema) (subject string, err error)
-	// returns a json/avro/protobuf schemas for a given field
-	GetSchemasForField(field string) ([]*srclient.Schema, error)
-	GetSchemaFields(schema *srclient.Schema) ([]string, error)
+type SchemasReader interface {
+	GetSchemasForField(field string) ([]domain.Schema, error)
 }
 
-// Cache is a plain storage from id to key-value pairs (e.g. userId -> {k0 -> v0, k1 -> v1, ...})
-type Cache interface {
+// FieldsCache is a plain storage from id to key-value pairs (e.g. userId -> {k0 -> v0, k1 -> v1, ...})
+type FieldsCache interface {
 	Get(id string, key string) (any, error) // todo should id be any?
 	Update(id string, key string, value any) error
 }

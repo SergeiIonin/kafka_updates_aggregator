@@ -6,22 +6,18 @@ import (
 	"github.com/riferrei/srclient"
 )
 
-type SchemaRegistryService struct {
-	Client srclient.ISchemaRegistryClient
-	Repo   SchemaRepo
+type SchemaServiceImpl struct {
+	Cache FieldsAndSchemaCache
 }
 
-func NewSchemaRegistryService(schemaRegistryUrl string) *SchemaRegistryService {
-	client := srclient.CreateSchemaRegistryClient(schemaRegistryUrl)
-	return &SchemaRegistryService{
-		Client: client,
-	}
+func NewSchemaServiceImpl() *SchemaServiceImpl {
+	return &SchemaServiceImpl{}
 }
 
-func (srs *SchemaRegistryService) SaveSchema(schema *srclient.Schema) error {
+func (srs *SchemaServiceImpl) AddSchemaToFields(schema *srclient.Schema) error {
 	fields, _ := srs.GetSchemaFields(schema)
 	for _, field := range fields {
-		if err := srs.Repo.AddSchemaToField(field, schema); err != nil {
+		if err := srs.Cache.AddSchemaToField(field, schema); err != nil {
 			return fmt.Errorf("could not add schema to field %v", err)
 		}
 	}
@@ -31,8 +27,8 @@ func (srs *SchemaRegistryService) SaveSchema(schema *srclient.Schema) error {
 // todo support avro and protobuf as well
 // if schema has multiple References then they can be different in only Version (Subject and Name should be the same)
 // tests only
-func (srs *SchemaRegistryService) GetSchemaSubject(schema *srclient.Schema) (string, error) {
-	return srs.Repo.GetSubjectBySchema(schema)
+func (srs *SchemaServiceImpl) GetSchemaSubject(schema *srclient.Schema) (string, error) {
+	return srs.Cache.GetSubjectBySchema(schema)
 	/*schemaType := schema.SchemaType()
 	if *schemaType != srclient.Json {
 		return "", fmt.Errorf("unsupported schema type %v", *schemaType)
@@ -41,8 +37,8 @@ func (srs *SchemaRegistryService) GetSchemaSubject(schema *srclient.Schema) (str
 	return subject, nil*/
 }
 
-func (srs *SchemaRegistryService) GetSchemasForField(field string) ([]*srclient.Schema, error) {
-	return srs.Repo.GetSchemasByField(field)
+func (srs *SchemaServiceImpl) GetSchemasForField(field string) ([]*srclient.Schema, error) {
+	return srs.Cache.GetSchemasByField(field)
 }
 
 type fieldRepr struct {
@@ -56,7 +52,7 @@ type schemaRepr struct {
 	Fields []fieldRepr
 }
 
-func (srs *SchemaRegistryService) GetSchemaFields(schema *srclient.Schema) ([]string, error) {
+func (srs *SchemaServiceImpl) GetSchemaFields(schema *srclient.Schema) ([]string, error) {
 	schemaType := schema.SchemaType()
 	if *schemaType != srclient.Json {
 		return nil, fmt.Errorf("unsupported schema type %v", *schemaType)
@@ -73,7 +69,7 @@ func (srs *SchemaRegistryService) GetSchemaFields(schema *srclient.Schema) ([]st
 	return fields, nil
 }
 
-type SchemaRepo interface {
+type FieldsAndSchemaCache interface {
 	AddSchemaToField(field string, schema *srclient.Schema) error
 	GetSchemasByField(field string) ([]*srclient.Schema, error)
 	GetSubjectBySchema(schema *srclient.Schema) (string, error)

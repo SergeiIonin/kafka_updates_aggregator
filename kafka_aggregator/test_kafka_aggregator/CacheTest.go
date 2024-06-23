@@ -1,16 +1,16 @@
 package test_kafka_aggregator
 
-type CacheTest struct {
+type FieldsCacheTest struct {
 	Mapping map[string]map[string]any
 }
 
-func NewCacheTest() *CacheTest {
-	return &CacheTest{
+func NewFieldsCacheTest() *FieldsCacheTest {
+	return &FieldsCacheTest{
 		Mapping: make(map[string]map[string]any),
 	}
 }
 
-func (cache *CacheTest) Add(id string, key string, value any) error {
+func (cache *FieldsCacheTest) Add(id string, key string, value any) error {
 	_, ok := cache.Mapping[id]
 	if !ok {
 		cache.Mapping[id] = make(map[string]any)
@@ -19,16 +19,16 @@ func (cache *CacheTest) Add(id string, key string, value any) error {
 	return nil
 }
 
-func (cache *CacheTest) Get(id string, key string) (any, error) {
+func (cache *FieldsCacheTest) Get(id string, key string) (any, error) {
 	return cache.Mapping[id][key], nil
 }
 
-func (cache *CacheTest) Update(id string, key string, value any) error {
+func (cache *FieldsCacheTest) Update(id string, key string, value any) error {
 	cache.Mapping[id][key] = value
 	return nil
 }
 
-func (cache *CacheTest) Delete(id string, key string) error {
+func (cache *FieldsCacheTest) Delete(id string, key string) error {
 	delete(cache.Mapping[id], key)
 	return nil
 }
