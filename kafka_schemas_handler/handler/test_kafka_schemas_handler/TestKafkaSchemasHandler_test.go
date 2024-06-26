@@ -17,7 +17,7 @@ var (
 	kafkaBroker  = "localhost:9092"
 	kafkaAddr    = kafka.TCP(kafkaBroker)
 	schemasTopic = "_schemas"
-	kafka_client *kafka.Client
+	kafkaClient  *kafka.Client
 	kafkaWriter  *kafka.Writer
 	containerId  string
 	err          error
@@ -37,7 +37,7 @@ func init() {
 
 	log.Printf("Container ID: %s", containerId)
 
-	kafka_client = &kafka.Client{
+	kafkaClient = &kafka.Client{
 		Addr:      kafkaAddr,
 		Transport: nil,
 	}
@@ -53,7 +53,7 @@ func init() {
 		}
 	}
 
-	if _, err = kafka_client.CreateTopics(context.Background(), &kafka.CreateTopicsRequest{
+	if _, err = kafkaClient.CreateTopics(context.Background(), &kafka.CreateTopicsRequest{
 		kafkaAddr,
 		topicConfigs,
 		false,
@@ -75,7 +75,7 @@ func TestKafkaAggregator_test(t *testing.T) {
 	//defer cleanup() // fixme it'd be great to rm containers in case t.Cleanup won't affect them
 	t.Cleanup(cleanup)
 
-	schemaDAO := NewSchemasDAOTestImpl()
+	schemasWriter := NewSchemasWriterTestImpl()
 
 	reader := kafka.NewReader(kafka.ReaderConfig{
 		Brokers:  []string{kafkaBroker},
@@ -90,7 +90,7 @@ func TestKafkaAggregator_test(t *testing.T) {
 		subject := "foo"
 		version := 1
 		schemaID := fmt.Sprintf("%s-%d", subject, version)
-		kafkaSchemasHandler := handler.NewKafkaSchemasHandler(reader, schemaDAO)
+		kafkaSchemasHandler := handler.NewKafkaSchemasHandler(reader, schemasWriter)
 		ctx, cancel := context.WithCancel(context.Background())
 
 		go kafkaSchemasHandler.Run(ctx)
@@ -118,9 +118,15 @@ func TestKafkaAggregator_test(t *testing.T) {
 		schemaWrittenChan := make(chan bool)
 		ensureSchemaWritten := func() {
 			for {
-				if _, ok := schemaDAO.Underlying[schemaID]; !ok {
+				if len(schemasWriter.Underlying) != 3 {
 					time.Sleep(50 * time.Millisecond) // fixme otherwise we can get an error on concurrent reads and writes to map, we can write to the channel in the schema DAO itself in tests
 					continue
+				}
+				_, firstNameOk := schemasWriter.Underlying["firstName"]
+				_, lastNameOk := schemasWriter.Underlying["lastName"]
+				_, ageOk := schemasWriter.Underlying["age"]
+				if !firstNameOk || !lastNameOk || !ageOk {
+					t.Fatalf("Schema %s is not added", schemaID)
 				}
 				t.Logf("Schema %s is added", schemaID)
 				schemaWrittenChan <- true
@@ -159,9 +165,15 @@ func TestKafkaAggregator_test(t *testing.T) {
 		schemaDeletedChan := make(chan bool)
 		ensureSchemaDeleted := func() {
 			for {
-				if _, ok := schemaDAO.Underlying[schemaID]; ok {
+				if schemas, _ := schemasWriter.Underlying["firstName"]; len(schemas) != 0 {
 					time.Sleep(50 * time.Millisecond)
 					continue
+				}
+				scFirstName, _ := schemasWriter.Underlying["firstName"]
+				scLastName, _ := schemasWriter.Underlying["lastName"]
+				scAge, _ := schemasWriter.Underlying["age"]
+				if len(scFirstName) != 0 || len(scLastName) != 0 || len(scAge) != 0 {
+					t.Fatalf("Schema %s is not deleted", schemaID)
 				}
 				t.Logf("Schema %s is deleted", schemaID)
 				schemaDeletedChan <- true

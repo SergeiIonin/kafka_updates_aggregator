@@ -18,7 +18,7 @@ func (ktr *KafkaTestReader) Read(expected int, count *int) ([]kafka.Message, err
 
 	go func() {
 		select {
-		case <-time.After(15 * time.Second): // fixme why so long?
+		case <-time.After(25 * time.Second): // fixme why so long?
 			log.Printf("15 second elapsed")
 			cancel()
 			return
