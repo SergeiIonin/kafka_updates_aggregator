@@ -109,12 +109,10 @@ func TestSchemasRedisWriter_test(t *testing.T) {
 		schemaExists := redisClient.Exists(ctx, "schema.user_balance_updates.1").Val()
 		assert.Equal(t, 1, int(schemaExists))
 
-		schemasRawForUserId := redisClient.HGet(ctx, "field.user_id", "schemas").Val()
-		var schemasForUserId []domain.Schema
-		err = json.Unmarshal([]byte(schemasRawForUserId), &schemasForUserId)
-		schemaDecoded := schemasForUserId[0]
+		schemaRawForUserId := redisClient.HGet(ctx, "field.user_id", schema.Key()).Val()
+		var schemaDecoded domain.Schema
+		err = json.Unmarshal([]byte(schemaRawForUserId), &schemaDecoded)
 		assert.NoError(t, err)
-		assert.Equal(t, 1, len(schemasForUserId))
 		assert.Equal(t, schema.Key(), schemaDecoded.Key())
 		assert.Equal(t, schema.ID(), schemaDecoded.ID())
 		assert.Equal(t, schema.Schema(), schemaDecoded.Schema())
@@ -156,23 +154,25 @@ func TestSchemasRedisWriter_test(t *testing.T) {
 		schema1Exists := redisClient.Exists(ctx, "schema.user_login.1").Val()
 		assert.Equal(t, 1, int(schema1Exists))
 
-		schemasRawForUserId := redisClient.HGet(ctx, "field.user_id", "schemas").Val()
-		var schemasForUserId []domain.Schema
-		err = json.Unmarshal([]byte(schemasRawForUserId), &schemasForUserId)
-		schema0Decoded := schemasForUserId[0]
-		assert.NoError(t, err)
-		assert.Equal(t, 2, len(schemasForUserId))
-		assert.Equal(t, sc0.Key(), schema0Decoded.Key())
-		assert.Equal(t, sc0.ID(), schema0Decoded.ID())
-		assert.Equal(t, sc0.Schema(), schema0Decoded.Schema())
-		assert.Equal(t, true, slices.Equal(sc0.Fields(), schema0Decoded.Fields()))
+		schema0RawForUserId := redisClient.HGet(ctx, "field.user_id", sc0.Key()).Val()
+		schema1RawForUserId := redisClient.HGet(ctx, "field.user_id", sc1.Key()).Val()
+		var schema0DecodedForUserId domain.Schema
+		var schema1DecodedForUserId domain.Schema
 
-		schema1Decoded := schemasForUserId[1]
+		err = json.Unmarshal([]byte(schema0RawForUserId), &schema0DecodedForUserId)
 		assert.NoError(t, err)
-		assert.Equal(t, sc1.Key(), schema1Decoded.Key())
-		assert.Equal(t, sc1.ID(), schema1Decoded.ID())
-		assert.Equal(t, sc1.Schema(), schema1Decoded.Schema())
-		assert.Equal(t, true, slices.Equal(sc1.Fields(), schema1Decoded.Fields()))
+		err = json.Unmarshal([]byte(schema1RawForUserId), &schema1DecodedForUserId)
+		assert.NoError(t, err)
+
+		assert.Equal(t, sc0.Key(), schema0DecodedForUserId.Key())
+		assert.Equal(t, sc0.ID(), schema0DecodedForUserId.ID())
+		assert.Equal(t, sc0.Schema(), schema0DecodedForUserId.Schema())
+		assert.Equal(t, true, slices.Equal(sc0.Fields(), schema0DecodedForUserId.Fields()))
+
+		assert.Equal(t, sc1.Key(), schema1DecodedForUserId.Key())
+		assert.Equal(t, sc1.ID(), schema1DecodedForUserId.ID())
+		assert.Equal(t, sc1.Schema(), schema1DecodedForUserId.Schema())
+		assert.Equal(t, true, slices.Equal(sc1.Fields(), schema1DecodedForUserId.Fields()))
 
 		cleanupRedis([]domain.Schema{*sc0, *sc1})
 	})
@@ -183,14 +183,19 @@ func TestSchemasRedisWriter_test(t *testing.T) {
 		_, err = schemasRedisWriter.SaveSchema(*sc1, ctx)
 		assert.NoError(t, err)
 
+		keysBefore, err := redisClient.Keys(ctx, "field.*").Result()
+		assert.NoError(t, err)
+		t.Logf("redis keys before deletion: %v", keysBefore)
+		assert.Equal(t, 5, len(keysBefore))
+
 		schemaKey, err := schemasRedisWriter.DeleteSchema(sc0.Subject(), sc0.Version(), ctx)
 		assert.NoError(t, err)
 		assert.Equal(t, sc0.Key(), schemaKey)
 
-		keys1, err := redisClient.Keys(ctx, "field.*").Result()
+		keysAfter, err := redisClient.Keys(ctx, "field.*").Result()
 		assert.NoError(t, err)
-		t.Logf("redis keys: %v", keys1)
-		assert.Equal(t, 5, len(keys1))
+		t.Logf("redis keys after deletion: %v", keysAfter)
+		assert.Equal(t, 3, len(keysAfter))
 
 		schema0Deleted := redisClient.Exists(ctx, "schema.user_balance_updates.1").Val()
 		assert.Equal(t, 0, int(schema0Deleted))
@@ -198,17 +203,15 @@ func TestSchemasRedisWriter_test(t *testing.T) {
 		schema1Exists := redisClient.Exists(ctx, "schema.user_login.1").Val()
 		assert.Equal(t, 1, int(schema1Exists))
 
-		schemasRawForUserId := redisClient.HGet(ctx, "field.user_id", "schemas").Val()
-		var schemasForUserId []domain.Schema
-		err = json.Unmarshal([]byte(schemasRawForUserId), &schemasForUserId)
+		schemasRawForUserId := redisClient.HGet(ctx, "field.user_id", sc1.Key()).Val()
+		var schemaDecodedForUserId domain.Schema
+		err = json.Unmarshal([]byte(schemasRawForUserId), &schemaDecodedForUserId)
 
-		assert.Equal(t, 1, len(schemasForUserId))
-		schema1Decoded := schemasForUserId[0]
 		assert.NoError(t, err)
-		assert.Equal(t, sc1.Key(), schema1Decoded.Key())
-		assert.Equal(t, sc1.ID(), schema1Decoded.ID())
-		assert.Equal(t, sc1.Schema(), schema1Decoded.Schema())
-		assert.Equal(t, true, slices.Equal(sc1.Fields(), schema1Decoded.Fields()))
+		assert.Equal(t, sc1.Key(), schemaDecodedForUserId.Key())
+		assert.Equal(t, sc1.ID(), schemaDecodedForUserId.ID())
+		assert.Equal(t, sc1.Schema(), schemaDecodedForUserId.Schema())
+		assert.Equal(t, true, slices.Equal(sc1.Fields(), schemaDecodedForUserId.Fields()))
 
 		cleanupRedis([]domain.Schema{*sc0, *sc1})
 	})

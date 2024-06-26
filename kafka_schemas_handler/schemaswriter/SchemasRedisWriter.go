@@ -12,7 +12,6 @@ import (
 
 type SchemasRedisWriter struct {
 	redis        *redis.Client
-	hsetName     string
 	fieldPrefix  string
 	schemaPrefix string
 }
@@ -21,7 +20,7 @@ func NewSchemasRedisWriter(redisAddr string) *SchemasRedisWriter {
 	redisClient := redis.NewClient(&redis.Options{
 		Addr: redisAddr,
 	})
-	return &SchemasRedisWriter{redis: redisClient, hsetName: "schemas", fieldPrefix: "field.", schemaPrefix: "schema."}
+	return &SchemasRedisWriter{redis: redisClient, fieldPrefix: "field.", schemaPrefix: "schema."}
 }
 
 func readSchemas(rawSchemas []byte) ([]domain.Schema, error) {
@@ -43,14 +42,14 @@ func (srw *SchemasRedisWriter) containsSchema(schema domain.Schema) bool {
 }
 
 func (srw *SchemasRedisWriter) addSchemaKey(schema domain.Schema) error {
-	key := fmt.Sprintf("%s%s", srw.schemaPrefix, schema.Key())
+	schemaRedisKey := fmt.Sprintf("%s%s", srw.schemaPrefix, schema.Key())
 	fieldsJson, err := json.Marshal(schema.Fields())
 	if err != nil {
-		log.Printf("Error marshalling fields for schema %s to json: %v", key, err)
+		log.Printf("Error marshalling fields for schema %s to json: %v", schemaRedisKey, err)
 		return err
 	}
-	if err := srw.redis.Set(context.Background(), key, string(fieldsJson), 0).Err(); err != nil {
-		log.Printf("Error setting schema key in redis: %v", err)
+	if err := srw.redis.Set(context.Background(), schemaRedisKey, string(fieldsJson), 0).Err(); err != nil {
+		log.Printf("Error setting schema schemaRedisKey in redis: %v", err)
 		return err
 	}
 	return nil
@@ -59,28 +58,14 @@ func (srw *SchemasRedisWriter) addSchemaKey(schema domain.Schema) error {
 func (srw *SchemasRedisWriter) addSchemaForField(ctx context.Context, schema domain.Schema, field string) error {
 	fieldRedisKey := fmt.Sprintf("%s%s", srw.fieldPrefix, field)
 
-	schemasRaw, err := srw.redis.HGet(ctx, fieldRedisKey, srw.hsetName).Result()
+	schemaRaw, err := json.Marshal(&schema)
 	if err != nil {
-		if !errors.Is(err, redis.Nil) {
-			log.Printf("Error fetching schemas for field %s from redis: %v", fieldRedisKey, err)
-			return err
-		}
-	}
-	schemas, err := readSchemas([]byte(schemasRaw))
-	if err != nil {
+		log.Printf("Error marshalling schema for field %s to json: %v", fieldRedisKey, err)
 		return err
 	}
 
-	schemasUpd := append(schemas, schema)
-
-	schemasRawUpd, err := json.Marshal(schemasUpd)
-	if err != nil {
-		log.Printf("Error marshalling schemas for field %s to json: %v", fieldRedisKey, err)
-		return err
-	}
-
-	if err = srw.redis.HSet(ctx, fieldRedisKey, srw.hsetName, schemasRawUpd).Err(); err != nil {
-		log.Printf("Error saving new schema for field -> []schema in redis: %v", err)
+	if err = srw.redis.HSet(ctx, fieldRedisKey, schema.Key(), schemaRaw).Err(); err != nil {
+		log.Printf("Error saving new schema for field -> schema in redis: %v", err)
 		return err
 	}
 	return nil
@@ -89,6 +74,7 @@ func (srw *SchemasRedisWriter) addSchemaForField(ctx context.Context, schema dom
 func (srw *SchemasRedisWriter) SaveSchema(schema domain.Schema, ctx context.Context) (string, error) {
 	log.Printf("saving schema %v", schema)
 	schemaKey := schema.Key()
+
 	if !srw.containsSchema(schema) {
 		if err := srw.addSchemaKey(schema); err != nil {
 			return "", err
@@ -101,21 +87,23 @@ func (srw *SchemasRedisWriter) SaveSchema(schema domain.Schema, ctx context.Cont
 				errorsAll = append(errorsAll, err)
 			}
 		}
+
 		if len(errorsAll) == 0 {
 			return schemaKey, nil
 		} else {
 			return "", errors.Join(errorsAll...)
 		}
-	} else {
-		msg := fmt.Sprintf("schema %s already exists in redis", schemaKey)
-		log.Println(msg)
-		return schemaKey, errors.New(msg)
 	}
+
+	msg := fmt.Sprintf("schema %s already exists in redis", schemaKey)
+	log.Println(msg)
+	return schemaKey, errors.New(msg)
 }
 
 func (srw *SchemasRedisWriter) DeleteSchema(subject string, version int, ctx context.Context) (string, error) {
 	schemaKey := fmt.Sprintf("%s.%d", subject, version)
 	schemaRedisKey := fmt.Sprintf("%s%s", srw.schemaPrefix, schemaKey)
+	log.Printf("deleting schema %v", schemaKey)
 
 	if srw.redis.Exists(ctx, schemaRedisKey).Val() == 0 {
 		msg := fmt.Sprintf("schema %s does not exist in redis", schemaRedisKey)
@@ -128,44 +116,18 @@ func (srw *SchemasRedisWriter) DeleteSchema(subject string, version int, ctx con
 	err := json.Unmarshal([]byte(fieldsRaw), &fields)
 	if err != nil {
 		log.Printf("Error unmarshalling fields for schema %s from redis: %v", schemaRedisKey, err)
+		return schemaKey, err
 	}
 
 	errorsAll := make([]error, 0, len(fields))
 	for _, field := range fields {
 		fieldRedisKey := fmt.Sprintf("%s%s", srw.fieldPrefix, field)
-		schemasRaw := srw.redis.HGet(ctx, fieldRedisKey, srw.hsetName).Val()
-		var schemas []domain.Schema
-		err = json.Unmarshal([]byte(schemasRaw), &schemas)
+
+		err = srw.redis.HDel(ctx, fieldRedisKey, schemaKey).Err()
 		if err != nil {
-			log.Printf("Error unmarshalling schemas for field %s from redis: %v", fieldRedisKey, err)
-			errorsAll = append(errorsAll, err)
-		}
-		for i, schema := range schemas {
-			if schema.Key() == schemaKey {
-				var schemasUpd []domain.Schema
-				if i != len(schemas)-1 {
-					schemasUpd = append(schemas[:i], schemas[(i+1):]...)
-				} else {
-					schemasUpd = schemas[:i]
-				}
-
-				if len(schemas) == 1 {
-					if err = srw.redis.HDel(ctx, fieldRedisKey, srw.hsetName).Err(); err != nil {
-						log.Printf("Error deleting fieldRedisKey %s: %v", fieldRedisKey, err)
-						errorsAll = append(errorsAll, err)
-					}
-				}
-
-				schemasRawUpd, err := json.Marshal(schemasUpd)
-				if err != nil {
-					log.Printf("Error marshalling schemas for field %s to json: %v", fieldRedisKey, err)
-					errorsAll = append(errorsAll, err)
-				}
-
-				if err = srw.redis.HSet(ctx, fieldRedisKey, srw.hsetName, schemasRawUpd).Err(); err != nil {
-					log.Printf("Error saving new schema for field -> []schema in redis: %v", err)
-					errorsAll = append(errorsAll, err)
-				}
+			if !errors.Is(err, redis.Nil) {
+				log.Printf("Error deleting schema %s for key %s from redis: %v", schemaKey, fieldRedisKey, err)
+				errorsAll = append(errorsAll, err)
 			}
 		}
 	}
