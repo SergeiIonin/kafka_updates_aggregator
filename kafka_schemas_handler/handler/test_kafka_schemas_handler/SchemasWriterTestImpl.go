@@ -1,6 +1,8 @@
 package test_kafka_schemas_handler
 
 import (
+	"context"
+	"fmt"
 	"kafka_updates_aggregator/domain"
 	"log"
 	"sync"
@@ -19,16 +21,14 @@ func NewSchemasWriterTestImpl() *SchemasWriterTestImpl {
 	}
 }
 
-func (sw *SchemasWriterTestImpl) SaveSchema(schema domain.Schema) (string, error) {
+func (sw *SchemasWriterTestImpl) SaveSchema(schema domain.Schema, ctx context.Context) (string, error) {
 	log.Printf("saving schema %v", schema)
-	for _, field := range schema.Fields {
+	for _, field := range schema.Fields() {
 		schemas, ok := sw.Underlying[field]
 		contains := false
 		if ok {
 			for _, s := range schemas {
-				subject := s.Subject
-				id := s.ID
-				if (subject == schema.Subject) && (id == schema.ID) {
+				if s.Key() == schema.Key() {
 					contains = true
 					break
 				}
@@ -45,14 +45,15 @@ func (sw *SchemasWriterTestImpl) SaveSchema(schema domain.Schema) (string, error
 		}
 	}
 	log.Printf("underlying map: %v", sw.Underlying)
-	return schema.Subject, nil
+	return schema.Subject(), nil
 }
 
-func (sw *SchemasWriterTestImpl) DeleteSchema(subject string, version int) (string, error) {
+func (sw *SchemasWriterTestImpl) DeleteSchema(subject string, version int, ctx context.Context) (string, error) {
+	schemaKey := fmt.Sprintf("%s.%d", subject, version)
 	for field, schemas := range sw.Underlying {
 		i := -1
 		for j, s := range schemas {
-			if s.Subject == subject && s.ID == version {
+			if s.Key() == schemaKey {
 				i = j
 			}
 		}

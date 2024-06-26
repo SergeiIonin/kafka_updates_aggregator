@@ -102,19 +102,16 @@ func TestKafkaAggregator_test(t *testing.T) {
 		]
 	}`
 
-	schema := domain.Schema{
-		Subject: "user_balance_updates",
-		Version: 1,
-		ID:      1,
-		Fields:  []string{"user_id", "balance", "deposit", "withdrawal"},
-		Schema:  schemaRaw,
-	}
+	schema := domain.CreateSchema("user_balance_updates", 1,
+		1,
+		[]string{"user_id", "balance", "deposit", "withdrawal"},
+		schemaRaw)
 
 	userId := "bob"
-	schemasWriter.AddSchemaToField("user_id", schema)
-	schemasWriter.AddSchemaToField("balance", schema)
-	schemasWriter.AddSchemaToField("deposit", schema)
-	schemasWriter.AddSchemaToField("withdrawal", schema)
+	schemasWriter.AddSchemaToField("user_id", *schema)
+	schemasWriter.AddSchemaToField("balance", *schema)
+	schemasWriter.AddSchemaToField("deposit", *schema)
+	schemasWriter.AddSchemaToField("withdrawal", *schema)
 
 	cache.Add(userId, "user_id", "bob")
 	cache.Add(userId, "balance", 1000)

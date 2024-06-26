@@ -31,7 +31,7 @@ func (ka *KafkaAggregator) toMap(data []byte) map[string]any {
 
 func (ka *KafkaAggregator) getSchemaFields(schema domain.Schema) (fields []string, err error) {
 	res := make(map[string]any)
-	err = json.Unmarshal([]byte(schema.Schema), &res)
+	err = json.Unmarshal([]byte(schema.Schema()), &res)
 	if err != nil {
 		return []string{}, fmt.Errorf("could not unmarshal schema %v", err)
 	}
@@ -44,8 +44,8 @@ func (ka *KafkaAggregator) getSchemaFields(schema domain.Schema) (fields []strin
 
 func (ka *KafkaAggregator) ComposeMessageForSchema(id string, schema domain.Schema) kafka.Message {
 	res := make(map[string]any)
-	fields := schema.Fields
-	subject := schema.Subject
+	fields := schema.Fields()
+	subject := schema.Subject()
 	for _, key := range fields {
 		value, err := ka.Get(id, key)
 		if err != nil {
@@ -75,11 +75,11 @@ func (ka *KafkaAggregator) WriteAggregate(id string, m kafka.Message) {
 		fields = append(fields, k)
 	}
 
-	// Update cache
+	// Update schemaswriter
 	for k, v := range kvs {
 		err := ka.Update(id, k, v)
 		if err != nil {
-			log.Printf("could not update cache for id %s, key %s, value %s, error: %v", id, k, v, err)
+			log.Printf("could not update schemaswriter for id %s, key %s, value %s, error: %v", id, k, v, err)
 		}
 	}
 
@@ -96,7 +96,7 @@ func (ka *KafkaAggregator) WriteAggregate(id string, m kafka.Message) {
 	schemaMap := make(map[int]domain.Schema)
 	for _, schemas := range field2Schemas {
 		for _, schema := range schemas {
-			schemaMap[schema.ID] = schema
+			schemaMap[schema.ID()] = schema
 		}
 	}
 	ctx := context.Background()
