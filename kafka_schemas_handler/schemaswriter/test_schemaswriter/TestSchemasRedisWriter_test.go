@@ -106,8 +106,8 @@ func TestSchemasRedisWriter_test(t *testing.T) {
 		t.Logf("redis keys: %v", keys)
 		assert.Equal(t, 4, len(keys))
 
-		schemaExists := redisClient.Get(ctx, "schema.user_balance_updates.1").Val()
-		assert.Equal(t, "1", schemaExists)
+		schemaExists := redisClient.Exists(ctx, "schema.user_balance_updates.1").Val()
+		assert.Equal(t, 1, int(schemaExists))
 
 		schemasRawForUserId := redisClient.HGet(ctx, "field.user_id", "schemas").Val()
 		var schemasForUserId []domain.Schema
@@ -142,8 +142,8 @@ func TestSchemasRedisWriter_test(t *testing.T) {
 		t.Logf("redis keys: %v", keys0)
 		assert.Equal(t, 4, len(keys0))
 
-		schema0Exists := redisClient.Get(ctx, "schema.user_balance_updates.1").Val()
-		assert.Equal(t, "1", schema0Exists)
+		schema0Exists := redisClient.Exists(ctx, "schema.user_balance_updates.1").Val()
+		assert.Equal(t, 1, int(schema0Exists))
 
 		schema1key, err := schemasRedisWriter.SaveSchema(*sc1, ctx)
 		assert.NoError(t, err)
@@ -153,8 +153,8 @@ func TestSchemasRedisWriter_test(t *testing.T) {
 		t.Logf("redis keys: %v", keys1)
 		assert.Equal(t, 5, len(keys1))
 
-		schema1Exists := redisClient.Get(ctx, "schema.user_login.1").Val()
-		assert.Equal(t, "1", schema1Exists)
+		schema1Exists := redisClient.Exists(ctx, "schema.user_login.1").Val()
+		assert.Equal(t, 1, int(schema1Exists))
 
 		schemasRawForUserId := redisClient.HGet(ctx, "field.user_id", "schemas").Val()
 		var schemasForUserId []domain.Schema
@@ -168,6 +168,42 @@ func TestSchemasRedisWriter_test(t *testing.T) {
 		assert.Equal(t, true, slices.Equal(sc0.Fields(), schema0Decoded.Fields()))
 
 		schema1Decoded := schemasForUserId[1]
+		assert.NoError(t, err)
+		assert.Equal(t, sc1.Key(), schema1Decoded.Key())
+		assert.Equal(t, sc1.ID(), schema1Decoded.ID())
+		assert.Equal(t, sc1.Schema(), schema1Decoded.Schema())
+		assert.Equal(t, true, slices.Equal(sc1.Fields(), schema1Decoded.Fields()))
+
+		cleanupRedis([]domain.Schema{*sc0, *sc1})
+	})
+
+	t.Run("Delete schema", func(t *testing.T) {
+		_, err := schemasRedisWriter.SaveSchema(*sc0, ctx)
+		assert.NoError(t, err)
+		_, err = schemasRedisWriter.SaveSchema(*sc1, ctx)
+		assert.NoError(t, err)
+
+		schemaKey, err := schemasRedisWriter.DeleteSchema(sc0.Subject(), sc0.Version(), ctx)
+		assert.NoError(t, err)
+		assert.Equal(t, sc0.Key(), schemaKey)
+
+		keys1, err := redisClient.Keys(ctx, "field.*").Result()
+		assert.NoError(t, err)
+		t.Logf("redis keys: %v", keys1)
+		assert.Equal(t, 5, len(keys1))
+
+		schema0Deleted := redisClient.Exists(ctx, "schema.user_balance_updates.1").Val()
+		assert.Equal(t, 0, int(schema0Deleted))
+
+		schema1Exists := redisClient.Exists(ctx, "schema.user_login.1").Val()
+		assert.Equal(t, 1, int(schema1Exists))
+
+		schemasRawForUserId := redisClient.HGet(ctx, "field.user_id", "schemas").Val()
+		var schemasForUserId []domain.Schema
+		err = json.Unmarshal([]byte(schemasRawForUserId), &schemasForUserId)
+
+		assert.Equal(t, 1, len(schemasForUserId))
+		schema1Decoded := schemasForUserId[0]
 		assert.NoError(t, err)
 		assert.Equal(t, sc1.Key(), schema1Decoded.Key())
 		assert.Equal(t, sc1.ID(), schema1Decoded.ID())
