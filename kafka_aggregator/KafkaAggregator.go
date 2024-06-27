@@ -113,7 +113,7 @@ func (ka *KafkaAggregator) WriteAggregate(id string, m kafka.Message) {
 }
 
 type SchemasReader interface {
-	GetSchemasForField(field string) ([]domain.Schema, error)
+	GetSchemasForField(field string, ctx context.Context) ([]domain.Schema, error)
 }
 
 // FieldsCache is a plain storage from id to key-value pairs (e.g. userId -> {k0 -> v0, k1 -> v1, ...})

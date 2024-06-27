@@ -1,6 +1,7 @@
 package test_kafka_aggregator
 
 import (
+	"context"
 	"kafka_updates_aggregator/domain"
 )
 
@@ -14,6 +15,6 @@ func NewSchemasReaderTestImpl(underlying map[string][]domain.Schema) SchemasRead
 	}
 }
 
-func (srt SchemasReaderTestImpl) GetSchemasForField(field string) ([]domain.Schema, error) {
+func (srt SchemasReaderTestImpl) GetSchemasForField(field string, ctx context.Context) ([]domain.Schema, error) {
 	return srt.FieldToSchemas[field], nil
 }
