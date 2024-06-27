@@ -1,5 +1,7 @@
 package test_kafka_aggregator
 
+import "context"
+
 type FieldsCacheTest struct {
 	Mapping map[string]map[string]any
 }
@@ -19,11 +21,11 @@ func (cache *FieldsCacheTest) Add(id string, key string, value any) error {
 	return nil
 }
 
-func (cache *FieldsCacheTest) Get(id string, key string) (any, error) {
+func (cache *FieldsCacheTest) Get(id string, key string, ctx context.Context) (any, error) {
 	return cache.Mapping[id][key], nil
 }
 
-func (cache *FieldsCacheTest) Update(id string, key string, value any) error {
+func (cache *FieldsCacheTest) Upsert(id string, key string, value any, ctx context.Context) error {
 	cache.Mapping[id][key] = value
 	return nil
 }

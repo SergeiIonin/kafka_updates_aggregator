@@ -11,6 +11,7 @@ import (
 	"kafka_updates_aggregator/domain"
 	"kafka_updates_aggregator/infra"
 	"kafka_updates_aggregator/kafka_schemas_handler/schemaswriter"
+	"kafka_updates_aggregator/testutils"
 	"log"
 	"slices"
 	"testing"
@@ -60,12 +61,7 @@ func init() {
 }
 
 func TestSchemasRedisWriter_test(t *testing.T) {
-	defer func(redisContainer tc.Container, ctx context.Context) {
-		err := redisContainer.Terminate(ctx)
-		if err != nil {
-			t.Fatalf(err.Error())
-		}
-	}(redisContainer, ctx)
+	defer testutils.TerminateContainer(redisContainer, ctx, t)
 
 	sc0 := domain.CreateSchema("user_balance_updates", 1, 1, []string{"user_id", "balance", "deposit", "withdrawal"},
 		`{

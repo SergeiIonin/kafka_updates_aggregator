@@ -125,7 +125,7 @@ func TestKafkaAggregator_test(t *testing.T) {
 		Key:   []byte(userId),
 		Value: payload,
 	}
-	aggregator.WriteAggregate(userId, message)
+	aggregator.WriteAggregate(userId, message, context.Background())
 
 	testReader := testutils.KafkaTestReader{
 		kafka.NewReader(kafka.ReaderConfig{
