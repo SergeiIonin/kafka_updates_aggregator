@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"github.com/docker/docker/client"
 	"github.com/segmentio/kafka-go"
+	"github.com/stretchr/testify/assert"
 	"kafka_updates_aggregator/domain"
 	"kafka_updates_aggregator/kafka_aggregator"
 	"kafka_updates_aggregator/testutils"
@@ -17,7 +18,7 @@ var (
 	kafkaAddr         = kafka.TCP(kafkaBroker)
 	mergedSourceTopic = "test_merged"
 	aggregateTopic    = "user_balance_updates"
-	kafka_client      *kafka.Client
+	kafkaClient       *kafka.Client
 	containerId       string
 	err               error
 	dockerClient      *client.Client
@@ -36,7 +37,7 @@ func init() {
 
 	log.Printf("Container ID: %s", containerId)
 
-	kafka_client = &kafka.Client{
+	kafkaClient = &kafka.Client{
 		Addr:      kafkaAddr,
 		Transport: nil,
 	}
@@ -52,7 +53,7 @@ func init() {
 		}
 	}
 
-	if _, err = kafka_client.CreateTopics(context.Background(), &kafka.CreateTopicsRequest{
+	if _, err = kafkaClient.CreateTopics(context.Background(), &kafka.CreateTopicsRequest{
 		kafkaAddr,
 		topicConfigs,
 		false,
@@ -74,22 +75,8 @@ func TestKafkaAggregator_test(t *testing.T) {
 	fieldToSchemasMap := make(map[string][]domain.Schema)
 	schemasReader := NewSchemasReaderTestImpl(fieldToSchemasMap)
 	schemasWriter := NewSchemasWriterTest(fieldToSchemasMap)
-	kafkaReader := kafka.NewReader(kafka.ReaderConfig{
-		Brokers:  []string{kafkaBroker},
-		Topic:    mergedSourceTopic,
-		MinBytes: 10e3, // 10KB
-		MaxBytes: 10e6, // 10MB
-	})
-	kafkaWriter := &kafka.Writer{
-		Addr:     kafkaAddr,
-		Balancer: &kafka.LeastBytes{},
-	}
-	aggregator := kafka_aggregator.KafkaAggregator{
-		kafkaReader,
-		kafkaWriter,
-		schemasReader,
-		cache,
-	}
+
+	aggregator := kafka_aggregator.NewKafkaAggregator(kafkaBroker, mergedSourceTopic, schemasReader, cache)
 
 	schemaRaw := `{
 		"type": "record",
@@ -125,7 +112,8 @@ func TestKafkaAggregator_test(t *testing.T) {
 		Key:   []byte(userId),
 		Value: payload,
 	}
-	aggregator.WriteAggregate(userId, message, context.Background())
+	err = aggregator.WriteAggregate(userId, message, context.Background())
+	assert.NoError(t, err)
 
 	testReader := testutils.KafkaTestReader{
 		kafka.NewReader(kafka.ReaderConfig{
