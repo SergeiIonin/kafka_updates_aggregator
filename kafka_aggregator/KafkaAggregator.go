@@ -110,7 +110,7 @@ func (ka *KafkaAggregator) getSchemaFields(schema domain.Schema) (fields []strin
 	return fields, nil
 }
 
-func (ka *KafkaAggregator) composeMessageForSchema(id string, schema domain.Schema, ctx context.Context) kafka.Message {
+func (ka *KafkaAggregator) composeMessageForSchema(id string, schema domain.Schema, ctx context.Context) (kafka.Message, error) {
 	res := make(map[string]any)
 	fields := schema.Fields()
 	subject := schema.Subject()
@@ -118,6 +118,9 @@ func (ka *KafkaAggregator) composeMessageForSchema(id string, schema domain.Sche
 		value, err := ka.cache.Get(id, key, ctx)
 		if err != nil {
 			log.Printf("[KafkaAggregator] could not get value for key %s, %v", key, err)
+		}
+		if value.(string) == "" {
+			return kafka.Message{}, errors.New("no value")
 		}
 		res[key] = value
 	}
@@ -132,7 +135,7 @@ func (ka *KafkaAggregator) composeMessageForSchema(id string, schema domain.Sche
 		Topic: subject,
 		Key:   []byte(id),
 		Value: payload,
-	}
+	}, nil
 }
 
 // todo how id for the message is propagated?
@@ -148,13 +151,13 @@ func (ka *KafkaAggregator) WriteAggregate(id string, m kafka.Message, ctx contex
 
 	errorsAll := make([]error, 0, len(fields))
 	// Upsert schemaswriter
-	for k, v := range kvs {
+	/*for k, v := range kvs {
 		err := ka.cache.Upsert(id, k, v, ctx) // !!! fixme we should upsert only fields presented in a schema
 		if err != nil {
 			log.Printf("[KafkaAggregator] could not update schemaswriter for id %s, key %s, value %s, error: %v", id, k, v, err)
 			errorsAll = append(errorsAll, err)
 		}
-	}
+	}*/
 
 	// Get all schemas for each field
 	field2Schemas := make(map[string][]domain.Schema)
@@ -163,6 +166,14 @@ func (ka *KafkaAggregator) WriteAggregate(id string, m kafka.Message, ctx contex
 		if err != nil {
 			log.Printf("[KafkaAggregator] could not get schemas for field %s, %v", field, err)
 			errorsAll = append(errorsAll, err)
+		}
+		if len(schemas) != 0 {
+			value := kvs[field]
+			err = ka.cache.Upsert(id, field, value, ctx)
+			if err != nil {
+				log.Printf("[KafkaAggregator] could not update schemaswriter for id %s, key %s, value %s, error: %v", id, field, value, err)
+				errorsAll = append(errorsAll, err)
+			}
 		}
 		field2Schemas[field] = schemas
 	}
@@ -179,8 +190,11 @@ func (ka *KafkaAggregator) WriteAggregate(id string, m kafka.Message, ctx contex
 	// todo it's better to ensure that we write only in case there's un update for at least one field of the schema
 	for _, schema := range schemaMap {
 		var msg kafka.Message
-		msg = ka.composeMessageForSchema(id, schema, ctx)
-		err := ka.writer.WriteMessages(ctx, msg)
+		msg, err := ka.composeMessageForSchema(id, schema, ctx)
+		if errors.Is(err, errors.New("no value")) {
+			continue
+		}
+		err = ka.writer.WriteMessages(ctx, msg)
 		if err != nil {
 			log.Printf("[KafkaAggregator] could not write message %v", err)
 			errorsAll = append(errorsAll, err)
@@ -199,6 +213,6 @@ type SchemasReader interface {
 
 // FieldsCache is a plain storage from id to key-value pairs (e.g. userId -> {k0 -> v0, k1 -> v1, ...})
 type FieldsCache interface {
-	Get(id string, key string, ctx context.Context) (any, error) // todo should id be any?
+	Get(id string, key string, ctx context.Context) (any, error) // todo should id be any? can we utilize generics?
 	Upsert(id string, key string, value any, ctx context.Context) error
 }

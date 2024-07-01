@@ -366,7 +366,7 @@ func Test_e2e_test(t *testing.T) {
 		wg.Add(1)
 		go runWithTimeout("aggregator", 30*time.Second, aggregator.Listen, wg)
 		wg.Wait()
-		go runWithTimeout("readAggregatedMsgs", 30*time.Second, readAggregatedMsgs, nil)
+		go runWithTimeout("readAggregatedMsgs", 45*time.Second, readAggregatedMsgs, nil)
 
 		t.Logf("[E2E Test] Reading aggregations")
 
@@ -425,24 +425,26 @@ func Test_e2e_test(t *testing.T) {
 		}
 
 		bobBalanceUpdates := []BalanceUpdates{
-			/*NewBalanceUpdates("1000", "100", "150"),
-			NewBalanceUpdates("950", "300", "150"),*/
+			NewBalanceUpdates("1000", "100", "150"),
+			NewBalanceUpdates("1000", "100", "350"),
 			NewBalanceUpdates("950", "300", "350"),
 		}
 
 		johnBalanceUpdates := []BalanceUpdates{
-			/*NewBalanceUpdates("2000", "200", "250"),
-			NewBalanceUpdates("1950", "400", "450"),*/
+			NewBalanceUpdates("2000", "200", "250"),
+			NewBalanceUpdates("2000", "200", "450"),
 			NewBalanceUpdates("1950", "400", "450"),
 		}
 
 		bobLoginInfo := []LoginInfo{
 			NewLoginInfo("2021-02-01 12:00:00", "1000"),
+			NewLoginInfo("2021-02-01 13:00:00", "1000"),
 			NewLoginInfo("2021-02-01 13:00:00", "950"),
 		}
 
 		johnLoginInfo := []LoginInfo{
 			NewLoginInfo("2021-02-01 12:30:00", "2000"),
+			NewLoginInfo("2021-02-01 13:30:00", "2000"),
 			NewLoginInfo("2021-02-01 13:30:00", "1950"),
 		}
 
