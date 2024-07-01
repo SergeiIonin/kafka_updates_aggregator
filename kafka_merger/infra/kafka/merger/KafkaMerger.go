@@ -16,9 +16,17 @@ type KafkaMerger struct {
 	MergedSourceTopic string
 }
 
+func NewKafkaMerger(brokers []string, topics []string, groupId string, mergedSourceTopic string) *KafkaMerger {
+	return &KafkaMerger{Brokers: brokers, Topics: topics, GroupId: groupId, MergedSourceTopic: mergedSourceTopic}
+}
+
 func (merger *KafkaMerger) Merge(ctx context.Context) {
 	wg := &sync.WaitGroup{}
 	wg.Add(len(merger.Topics) * 2)
+
+	contextOrDeadlineExceeded := func(err error) bool {
+		return errors.Is(err, context.DeadlineExceeded) || errors.Is(err, context.Canceled)
+	}
 
 	createReader := func(topic string, groupId string) (reader *kafka.Reader) {
 		config := kafka.ReaderConfig{
@@ -39,42 +47,48 @@ func (merger *KafkaMerger) Merge(ctx context.Context) {
 		}
 	}
 
+	// fixme: if we check errors.Is(err, context.Canceled), then should we read <-ctx.Done()???
 	write := func(writer *kafka.Writer, ch <-chan kafka.Message) {
 		for {
 			select {
 			case m, _ := <-ch:
-				log.Printf("writing message from topic %s, %s", m.Topic, string(m.Value))
+				log.Printf("[KafkaMerger] writing message from topic %s, %s", m.Topic, string(m.Value))
 				if err := writer.WriteMessages(ctx, m); err != nil {
-					log.Fatalf("failed to write message: %v", err)
+					log.Fatalf("[KafkaMerger] failed to write message: %v", err)
+					if contextOrDeadlineExceeded(err) {
+						wg.Done()
+						//close(ch) // fixme the channel will be already closed, why?
+						return
+					}
 				}
 			case <-ctx.Done():
-				log.Printf("Writer is canceled")
+				log.Printf("[KafkaMerger] Writer is canceled")
 				wg.Done()
 				return
 			}
 		}
 
-		for m := range ch {
-			log.Printf("writing message from topic %s, %s", m.Topic, string(m.Value))
+		/*for m := range ch {
+			log.Printf("[KafkaMerger] writing message from topic %s, %s", m.Topic, string(m.Value))
 			if err := writer.WriteMessages(ctx, m); err != nil {
-				log.Fatalf("failed to write message: %v", err)
+				log.Fatalf("[KafkaMerger] failed to write message: %v", err)
 			}
-		}
+		}*/
 	}
 
 	read := func(reader *kafka.Reader, ch chan<- kafka.Message) {
 		for {
 			m, err := reader.ReadMessage(ctx)
 			if err != nil {
-				if errors.Is(err, context.Canceled) {
-					log.Printf("Reader is canceled")
+				if contextOrDeadlineExceeded(err) {
+					log.Printf("[KafkaMerger] Reader is canceled")
 					wg.Done()
 					//close(ch) // fixme the channel will be already closed, why?
 					return
 				}
-				log.Fatalf("failed to read message: %v", err)
+				log.Printf("[KafkaMerger] failed to read message: %v", err) // fixme
 			}
-			log.Printf("message at topic/partition/offset %v/%v/%v: %s = %s\n",
+			log.Printf("[KafkaMerger] message at topic/partition/offset %v/%v/%v: %s = %s\n",
 				m.Topic, m.Partition, m.Offset, string(m.Key), string(m.Value))
 			m.Headers = append(m.Headers, kafka.Header{
 				"initTopic", []byte(m.Topic),
@@ -95,11 +109,11 @@ func (merger *KafkaMerger) Merge(ctx context.Context) {
 
 	// messages from the same topic will be ordered in the merged topic
 
-	for i, _ := range merger.Topics {
+	for i := range merger.Topics {
 		go write(writers[i], chans[i])
 		go read(readers[i], chans[i])
 	}
 
 	wg.Wait()
-	log.Printf("Exiting merge")
+	log.Printf("[KafkaMerger] Exiting merge")
 }

@@ -77,20 +77,12 @@ func TestKafkaAggregator_test(t *testing.T) {
 
 	schemasWriter := NewSchemasWriterTestImpl()
 
-	reader := kafka.NewReader(kafka.ReaderConfig{
-		Brokers:  []string{kafkaBroker},
-		Topic:    "_schemas",
-		GroupID:  "schemas_handler",
-		MinBytes: 10e3,
-		MaxBytes: 10e6,
-	})
-
 	t.Run("create schema and delete schema", func(t *testing.T) {
 		wg := sync.WaitGroup{}
 		subject := "foo"
 		version := 1
 		schemaID := fmt.Sprintf("%s-%d", subject, version)
-		kafkaSchemasHandler := handler.NewKafkaSchemasHandler(reader, schemasWriter)
+		kafkaSchemasHandler := handler.NewKafkaSchemasHandler(kafkaBroker, schemasWriter)
 		ctx, cancel := context.WithCancel(context.Background())
 
 		go kafkaSchemasHandler.Run(ctx)
