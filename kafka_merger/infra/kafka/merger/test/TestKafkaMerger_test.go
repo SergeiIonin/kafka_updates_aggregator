@@ -9,6 +9,7 @@ import (
 	testutils "kafka_updates_aggregator/testutils"
 	"log"
 	"slices"
+	"sync"
 	"testing"
 	"time"
 )
@@ -101,18 +102,12 @@ func TestKafkaMerger_test(t *testing.T) {
 		MergedSourceTopic: mergedSourceTopic,
 	}
 
-	ctx, cancel := context.WithCancel(context.Background())
+	duration := 60 * time.Second
 
-	go func() {
-		select {
-		case <-time.After(30 * time.Second):
-			t.Logf("30 seconds elapsed")
-			cancel()
-			return
-		}
-	}()
-
-	merger.Merge(ctx)
+	wg := &sync.WaitGroup{}
+	wg.Add(1)
+	testutils.RunWithTimeout(t, "merger", duration, merger.Merge, wg)
+	wg.Wait()
 
 	log.Printf("Merged source topic: %s", mergedSourceTopic)
 

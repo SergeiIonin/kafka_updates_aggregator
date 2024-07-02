@@ -87,7 +87,7 @@ func CreateKafkaWithKRaftContainer(dockerClient *client.Client) (id string, err 
 		panic(err)
 	}
 
-	log.Println("WAITING KAFKA CONTAINER TO START...")
+	log.Println("WAITING FOR KAFKA CONTAINER TO START...")
 
 	wg := &sync.WaitGroup{}
 	wg.Add(1)
@@ -132,7 +132,7 @@ func CreateRedisContainer(dockerClient *client.Client) (id string, err error) {
 		panic(err)
 	}
 
-	log.Println("WAITING REDIS CONTAINER TO START...")
+	log.Println("WAITING FOR REDIS CONTAINER TO START...")
 
 	wg := &sync.WaitGroup{}
 	wg.Add(1)

@@ -8,6 +8,7 @@ import (
 	"github.com/segmentio/kafka-go"
 	"kafka_updates_aggregator/domain"
 	"log"
+	"time"
 )
 
 type KafkaAggregator struct {
@@ -43,7 +44,8 @@ func (ka *KafkaAggregator) Listen(ctx context.Context) {
 	log.Printf("[KafkaAggregator] started")
 	for {
 		msg, err := ka.reader.ReadMessage(ctx)
-		log.Printf("[KafkaAggregator] Reading message %s", string(msg.Value))
+		currentTime := time.Now().UnixMilli()
+		log.Printf("[KafkaAggregator] %d Reading message %s", currentTime, string(msg.Value))
 		if err != nil {
 			if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
 				return
@@ -150,14 +152,6 @@ func (ka *KafkaAggregator) WriteAggregate(id string, m kafka.Message, ctx contex
 	log.Printf("[KafkaAggregator] fields to aggregate: %v", fields) // fixme
 
 	errorsAll := make([]error, 0, len(fields))
-	// Upsert schemaswriter
-	/*for k, v := range kvs {
-		err := ka.cache.Upsert(id, k, v, ctx) // !!! fixme we should upsert only fields presented in a schema
-		if err != nil {
-			log.Printf("[KafkaAggregator] could not update schemaswriter for id %s, key %s, value %s, error: %v", id, k, v, err)
-			errorsAll = append(errorsAll, err)
-		}
-	}*/
 
 	// Get all schemas for each field
 	field2Schemas := make(map[string][]domain.Schema)

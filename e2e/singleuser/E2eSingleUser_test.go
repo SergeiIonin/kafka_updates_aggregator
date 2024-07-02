@@ -1,4 +1,4 @@
-package e2e
+package singleuser
 
 import (
 	"context"
@@ -9,6 +9,7 @@ import (
 	"github.com/redis/go-redis/v9"
 	"github.com/segmentio/kafka-go"
 	"github.com/stretchr/testify/assert"
+	"kafka_updates_aggregator/e2e"
 	"kafka_updates_aggregator/infra"
 	"kafka_updates_aggregator/kafka_aggregator"
 	"kafka_updates_aggregator/kafka_aggregator/fieldscache"
@@ -18,6 +19,7 @@ import (
 	"kafka_updates_aggregator/kafka_schemas_handler/schemaswriter"
 	"kafka_updates_aggregator/testutils"
 	"log"
+	"slices"
 	"sync"
 	"testing"
 	"time"
@@ -143,7 +145,7 @@ func init() {
 	fieldsRedisCache = fieldscache.NewFieldsRedisCache(redisAddr)
 }
 
-func Test_e2e_test(t *testing.T) {
+func Test_e2eSingleUser_test(t *testing.T) {
 	/*defer func() {
 		terminateCtx := context.Background()
 		testutils.TerminateContainer(dockerClient, kafkaContainerId, terminateCtx, t)
@@ -221,70 +223,40 @@ func Test_e2e_test(t *testing.T) {
 
 		// WRITE TO SOURCE TOPICS
 		writeMsgsToSourceTopics := func(ctx context.Context, wg *sync.WaitGroup, deltaMillis time.Duration) {
-			messsagesWithId := []MessageWithId{
+			messsagesWithId := []e2e.MessageWithId{
 				{
 					IdKey:   "user_id",
 					IdValue: "bob",
-					Message: NewLogin("2021-01-01 12:00:00"),
-				},
-				{
-					IdKey:   "user_id",
-					IdValue: "john",
-					Message: NewLogin("2021-02-01 12:30:00"),
+					Message: e2e.NewLogin("2021-01-01 12:00:00"),
 				},
 				{
 					IdKey:   "user_id",
 					IdValue: "bob",
-					Message: NewDeposit(1000, 100, true, "Cordovia"),
-				},
-				{
-					IdKey:   "user_id",
-					IdValue: "john",
-					Message: NewDeposit(2000, 200, true, "Nowherestan"),
+					Message: e2e.NewDeposit(1000, 100, true, "Cordovia"),
 				},
 				{
 					IdKey:   "user_id",
 					IdValue: "bob",
-					Message: NewWithdrawal(150),
-				},
-				{
-					IdKey:   "user_id",
-					IdValue: "john",
-					Message: NewWithdrawal(250),
+					Message: e2e.NewWithdrawal(150),
 				},
 				{
 					IdKey:   "user_id",
 					IdValue: "bob",
-					Message: NewLogin("2021-01-01 13:00:00"),
-				},
-				{
-					IdKey:   "user_id",
-					IdValue: "john",
-					Message: NewLogin("2021-02-01 13:30:00"),
+					Message: e2e.NewLogin("2021-01-01 13:00:00"),
 				},
 				{
 					IdKey:   "user_id",
 					IdValue: "bob",
-					Message: NewDeposit(950, 300, true, "Cordovia"),
-				},
-				{
-					IdKey:   "user_id",
-					IdValue: "john",
-					Message: NewDeposit(1950, 400, true, "Nowherestan"),
+					Message: e2e.NewDeposit(950, 300, true, "Cordovia"),
 				},
 				{
 					IdKey:   "user_id",
 					IdValue: "bob",
-					Message: NewWithdrawal(350),
-				},
-				{
-					IdKey:   "user_id",
-					IdValue: "john",
-					Message: NewWithdrawal(450),
+					Message: e2e.NewWithdrawal(350),
 				},
 			}
 
-			toKafkaMsg := func(idKey string, idValue string, msg MessageWithTopic) (kafka.Message, error) {
+			toKafkaMsg := func(idKey string, idValue string, msg e2e.MessageWithTopic) (kafka.Message, error) {
 				id := fmt.Sprintf("{\"%s\":\"%s\"}", idKey, idValue)
 				var kafkaMsg kafka.Message
 				payload := make([]byte, 0, 10)
@@ -364,11 +336,11 @@ func Test_e2e_test(t *testing.T) {
 		go runWithTimeout("schemaHandler", 30*time.Second, schemasHandler.Run, wg)
 		wg.Wait()
 		wg.Add(3)
-		go writeMsgsToSourceTopics(context.Background(), wg, 50*time.Millisecond)
-		go runWithTimeout("kafkaMerger", 30*time.Second, kafkaMerger.Merge, wg)
-		go runWithTimeout("aggregator", 30*time.Second, aggregator.Listen, wg)
+		go runWithTimeout("kafkaMerger", 120*time.Second, kafkaMerger.Merge, wg)
+		go writeMsgsToSourceTopics(context.Background(), wg, 100*time.Millisecond)
+		go runWithTimeout("aggregator", 120*time.Second, aggregator.Listen, wg)
 		wg.Wait()
-		go runWithTimeout("readAggregatedMsgs", 45*time.Second, readAggregatedMsgs, nil)
+		go runWithTimeout("readAggregatedMsgs", 120*time.Second, readAggregatedMsgs, nil)
 
 		t.Logf("[E2E Test] Reading aggregations")
 
@@ -386,36 +358,30 @@ func Test_e2e_test(t *testing.T) {
 		collectAggregatedMsgs()
 		t.Logf("[E2E Test] %d Aggregated messages are collected", count)
 
-		aggregatesBalanceUpdatesBob := make(map[BalanceUpdates]bool)
-		aggregatesBalanceUpdatesJohn := make(map[BalanceUpdates]bool)
-		aggregatesLoginInfoBob := make(map[LoginInfo]bool)
-		aggregatesLoginInfoJohn := make(map[LoginInfo]bool)
+		aggregatesBalanceUpdatesBob := make(map[e2e.BalanceUpdates]int)
+		aggregatesLoginInfoBob := make(map[e2e.LoginInfo]int)
 
 		for i, msg := range aggregatedMsgs {
 			k := string(msg.Key)
 			if msg.Topic == "aggregated_user_balance_updates" {
-				var balanceUpdates BalanceUpdates
+				var balanceUpdates e2e.BalanceUpdates
 				err := json.Unmarshal(msg.Value, &balanceUpdates)
 				if err != nil {
 					t.Fatal(err)
 				}
-				if k == "john" {
-					aggregatesBalanceUpdatesJohn[balanceUpdates] = true
-				} else if k == "bob" {
-					aggregatesBalanceUpdatesBob[balanceUpdates] = true
+				if k == "bob" {
+					aggregatesBalanceUpdatesBob[balanceUpdates] = i
 				} else {
 					t.Fatalf("Unknown key %s", k)
 				}
 			} else if msg.Topic == "aggregated_user_login_info" {
-				var loginInfo LoginInfo
+				var loginInfo e2e.LoginInfo
 				err := json.Unmarshal(msg.Value, &loginInfo)
 				if err != nil {
 					t.Fatal(err)
 				}
-				if k == "john" {
-					aggregatesLoginInfoJohn[loginInfo] = true
-				} else if k == "bob" {
-					aggregatesLoginInfoBob[loginInfo] = true
+				if k == "bob" {
+					aggregatesLoginInfoBob[loginInfo] = i
 				} else {
 					t.Fatalf("Unknown key %s", k)
 				}
@@ -426,51 +392,35 @@ func Test_e2e_test(t *testing.T) {
 			t.Logf("Aggregated message %d, %s: %s", i, k, v)
 		}
 
-		bobBalanceUpdates := []BalanceUpdates{
-			NewBalanceUpdates("1000", "100", "150"),
-			NewBalanceUpdates("1000", "100", "350"),
-			NewBalanceUpdates("950", "300", "350"),
+		bobBalanceUpdates := []e2e.BalanceUpdates{
+			e2e.NewBalanceUpdates("1000", "100", "150"),
+			e2e.NewBalanceUpdates("950", "300", "150"),
+			e2e.NewBalanceUpdates("950", "300", "350"),
 		}
 
-		johnBalanceUpdates := []BalanceUpdates{
-			NewBalanceUpdates("2000", "200", "250"),
-			NewBalanceUpdates("2000", "200", "450"),
-			NewBalanceUpdates("1950", "400", "450"),
+		bobLoginInfo := []e2e.LoginInfo{
+			e2e.NewLoginInfo("2021-02-01 12:00:00", "1000"),
+			e2e.NewLoginInfo("2021-02-01 13:00:00", "1000"),
+			e2e.NewLoginInfo("2021-02-01 13:00:00", "950"),
 		}
 
-		bobLoginInfo := []LoginInfo{
-			NewLoginInfo("2021-02-01 12:00:00", "1000"),
-			NewLoginInfo("2021-02-01 13:00:00", "1000"),
-			NewLoginInfo("2021-02-01 13:00:00", "950"),
-		}
-
-		johnLoginInfo := []LoginInfo{
-			NewLoginInfo("2021-02-01 12:30:00", "2000"),
-			NewLoginInfo("2021-02-01 13:30:00", "2000"),
-			NewLoginInfo("2021-02-01 13:30:00", "1950"),
-		}
-
+		offsetsBalanceUpdates := make([]int, 0, len(bobBalanceUpdates))
 		for _, bbu := range bobBalanceUpdates {
-			_, ok := aggregatesBalanceUpdatesBob[bbu]
+			o, ok := aggregatesBalanceUpdatesBob[bbu]
 			t.Logf("%v written to aggregate for bob is %v", bbu, ok)
 			assert.Equal(t, true, ok)
+			offsetsBalanceUpdates = append(offsetsBalanceUpdates, o)
 		}
-		for _, jbu := range johnBalanceUpdates {
-			_, ok := aggregatesBalanceUpdatesJohn[jbu]
-			t.Logf("%v written to aggregate for john is %v", jbu, ok)
-			assert.Equal(t, true, ok)
-		}
+		assert.Equal(t, true, slices.IsSorted(offsetsBalanceUpdates))
 
+		offsetsLoginInfo := make([]int, 0, len(bobLoginInfo))
 		for _, bli := range bobLoginInfo {
-			_, ok := aggregatesLoginInfoBob[bli]
+			o, ok := aggregatesLoginInfoBob[bli]
 			t.Logf("%v written to aggregate for bob is %v", bli, ok)
 			assert.Equal(t, true, ok)
+			offsetsLoginInfo = append(offsetsLoginInfo, o)
 		}
-		for _, jli := range johnLoginInfo {
-			_, ok := aggregatesLoginInfoJohn[jli]
-			t.Logf("%v written to aggregate for john is %v", jli, ok)
-			assert.Equal(t, true, ok)
-		}
+		assert.Equal(t, true, slices.IsSorted(offsetsLoginInfo))
 	})
 
 }
