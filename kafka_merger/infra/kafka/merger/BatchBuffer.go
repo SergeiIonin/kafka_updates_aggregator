@@ -46,7 +46,7 @@ func (bb *KafkaBatchBuffer) AddToBatch(ctx context.Context, msg kafka.Message) e
 			return err
 		}
 	}
-	log.Printf("[KafkaBatchBuffer] adding kafka msg %s to buffer; number of msgs is %d, size of buffer is %d", string(msg.Value), len(bb.underlying), bb.bufSize)
+	log.Printf("[KafkaBatchBuffer] adding kafka msg %s to buffer; number of msgs is %d, capacity of buffer is %d", string(msg.Value), len(bb.underlying), bb.bufSize)
 	bb.underlying = append(bb.underlying, msg)
 	return nil
 }

@@ -75,26 +75,6 @@ func (merger *KafkaMerger) Merge(ctx context.Context) {
 		}
 	}
 
-	/*readers := make([]*kafka.Reader, len(merger.Topics))
-	writers := make([]*kafka.Writer, len(merger.Topics))
-	chans := make([]chan kafka.Message, len(merger.Topics))
-
-	for i, topic := range merger.Topics {
-		readers[i] = createReader(topic, fmt.Sprintf("%s_%d", merger.GroupId, i))
-		writers[i] = createWriter(merger.MergedSourceTopic)
-		chans[i] = make(chan kafka.Message, 100)
-	}
-
-	// messages from the same topic will be ordered in the merged topic
-
-	for i := range merger.Topics {
-		go write(writers[i], chans[i])
-		go read(readers[i], chans[i])
-	}
-
-	wg.Wait()
-	log.Printf("[KafkaMerger] Exiting merge")*/
-
 	ch := make(chan kafka.Message)
 	readers := make([]*kafka.Reader, len(merger.Topics))
 
@@ -107,6 +87,4 @@ func (merger *KafkaMerger) Merge(ctx context.Context) {
 	}
 
 	go write(ch)
-
-	log.Printf("[KafkaMerger] Exiting merge")
 }
