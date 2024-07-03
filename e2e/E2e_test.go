@@ -56,7 +56,8 @@ func initDocker() {
 }
 
 func initKafka() (string, error) {
-	kafkaContainerId, err := testutils.CreateKafkaWithKRaftContainer(dockerClient)
+	var err error
+	kafkaContainerId, err = testutils.CreateKafkaWithKRaftContainer(dockerClient)
 	if err != nil {
 		log.Fatalf("could not create kafka container %v", err)
 		return "", err
@@ -94,13 +95,14 @@ func initKafka() (string, error) {
 }
 
 func initRedis() (string, error) {
-	redisContainerId, err := testutils.CreateRedisContainer(dockerClient)
+	var err error
+	redisContainerId, err = testutils.CreateRedisContainer(dockerClient)
 	if err != nil {
-		log.Fatalf("could not create kafka container %v", err)
+		log.Fatalf("could not create redis container %v", err)
 		return "", err
 	}
 
-	log.Printf("KafkaContainerId: %s", kafkaContainerId)
+	log.Printf("redisContainerId: %s", redisContainerId)
 	redisClient = redis.NewClient(&redis.Options{Addr: redisAddr})
 
 	return redisContainerId, nil

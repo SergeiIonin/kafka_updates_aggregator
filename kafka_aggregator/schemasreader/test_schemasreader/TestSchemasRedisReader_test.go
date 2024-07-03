@@ -61,7 +61,12 @@ func init() {
 }
 
 func TestSchemasRedisReader_test(t *testing.T) {
-	defer testutils.TerminateTestContainer(redisContainer, ctx, t)
+	defer func(container tc.Container, ctx context.Context, t *testing.T) {
+		err := testutils.TerminateTestContainer(container, ctx, t)
+		if err != nil {
+			t.Fatalf(err.Error())
+		}
+	}(redisContainer, ctx, t)
 
 	sc0 := domain.CreateSchema("user_balance_updates", 1, 1, []string{"user_id", "balance", "deposit", "withdrawal"},
 		`{

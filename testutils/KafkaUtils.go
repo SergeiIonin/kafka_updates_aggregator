@@ -23,7 +23,6 @@ var (
 	numTopics         = len(topics)
 	kafka_client      *kafka.Client
 	containerId       string
-	err               error
 	dockerClient      *client.Client
 )
 
@@ -83,7 +82,7 @@ func CreateKafkaWithKRaftContainer(dockerClient *client.Client) (id string, err 
 		panic(err)
 	}
 
-	if err := dockerClient.ContainerStart(ctx, resp.ID, container.StartOptions{}); err != nil {
+	if err = dockerClient.ContainerStart(ctx, resp.ID, container.StartOptions{}); err != nil {
 		panic(err)
 	}
 
@@ -128,7 +127,7 @@ func CreateRedisContainer(dockerClient *client.Client) (id string, err error) {
 		panic(err)
 	}
 
-	if err := dockerClient.ContainerStart(ctx, resp.ID, container.StartOptions{}); err != nil {
+	if err = dockerClient.ContainerStart(ctx, resp.ID, container.StartOptions{}); err != nil {
 		panic(err)
 	}
 

@@ -56,7 +56,9 @@ func (bb *KafkaBatchBuffer) ClearBuffer(ctx context.Context) error {
 	case <-ctx.Done():
 		return ctx.Err() // fixme
 	default:
-		log.Printf("[KafkaBatchBuffer] Clearing the buffer... buffer size is %d", len(bb.underlying))
+		if len(bb.underlying) != 0 {
+			log.Printf("[KafkaBatchBuffer] Clearing the buffer... buffer size is %d", len(bb.underlying))
+		}
 		sortMessagesByTimestamp(bb.underlying)
 		if err := bb.writer.WriteMessages(ctx, bb.underlying...); err != nil { // check that bb.underlying is sorted at this call
 			return err // todo panic?

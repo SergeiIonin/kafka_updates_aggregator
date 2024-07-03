@@ -1,4 +1,4 @@
-package singleuser
+package multipleusers
 
 import (
 	"context"
@@ -31,7 +31,7 @@ var (
 	sourceTopics        = []string{"user_login", "user_deposit", "user_withdrawal"}
 	mergedSourcesTopic  = "test_merged"
 	aggregatedTopics    = []string{"aggregated_user_balance_updates", "aggregated_user_login_info"}
-	numExpectedMessages = 6
+	numExpectedMessages = 12
 
 	schemasTopic = "_schemas"
 
@@ -146,7 +146,7 @@ func init() {
 	fieldsRedisCache = fieldscache.NewFieldsRedisCache(redisAddr)
 }
 
-func Test_e2eSingleUser_test(t *testing.T) {
+func Test_e2eMultipleUsers_test(t *testing.T) {
 	defer func() {
 		if err := testutils.TerminateContainer(dockerClient, kafkaContainerId); err != nil {
 			t.Fatalf(err.Error())
@@ -178,7 +178,7 @@ func Test_e2eSingleUser_test(t *testing.T) {
 		// WRITE MESSAGES TO TOPICS AND AGGREGATE NEW MESSAGES ACCORDING TO SCHEMAS
 		wg.Add(3)
 		go testutils.RunWithTimeout(t, "kafkaMerger", 60*time.Second, kafkaMerger.Merge, wg)
-		go e2eutils.WriteMessagesToSourceTopics(t, kafkaAddr, 50*time.Millisecond, wg)
+		go e2eutils.WriteMessagesForMultipleIdsToSourceTopics(t, kafkaAddr, 50*time.Millisecond, wg)
 		go testutils.RunWithTimeout(t, "aggregator", 60*time.Second, aggregator.Listen, wg)
 		wg.Wait()
 
@@ -188,9 +188,9 @@ func Test_e2eSingleUser_test(t *testing.T) {
 		go e2eutils.ReadAggregatedMessages(t, []string{kafkaBroker}, aggregatedTopics, aggregatedMessagesChans, numExpectedMessages)
 		// TEST AGGREGATED MESSAGES
 		aggregatedMsgs := e2eutils.CollectAggregatedMsgs(t, aggregatedMessagesChans, numExpectedMessages)
-		aggregatesBalanceUpdatesBob, aggregatesLoginInfoBob := e2eutils.CollectAggregationsForUser(t, aggregatedMsgs)
+		aggregatesBalanceUpdates, aggregatesLoginInfo := e2eutils.CollectAggregationsForMultipleUsers(t, aggregatedMsgs)
 
-		testData := e2eutils.TestData{
+		testDataBob := e2eutils.TestData{
 			BalanceUpdatesExpected: []e2eutils.BalanceUpdates{
 				e2eutils.NewBalanceUpdates("1000", "100", "150"),
 				e2eutils.NewBalanceUpdates("950", "300", "150"),
@@ -203,22 +203,53 @@ func Test_e2eSingleUser_test(t *testing.T) {
 			},
 		}
 
-		offsetsBalanceUpdates := make([]int, 0, len(testData.BalanceUpdatesExpected))
-		for _, bbu := range testData.BalanceUpdatesExpected {
-			o, ok := aggregatesBalanceUpdatesBob[bbu]
-			t.Logf("%v written to aggregate for bob is %v", bbu, ok)
-			assert.Equal(t, true, ok)
-			offsetsBalanceUpdates = append(offsetsBalanceUpdates, o)
+		testDataJohn := e2eutils.TestData{
+			BalanceUpdatesExpected: []e2eutils.BalanceUpdates{
+				e2eutils.NewBalanceUpdates("2000", "200", "250"),
+				e2eutils.NewBalanceUpdates("1950", "400", "250"),
+				e2eutils.NewBalanceUpdates("1950", "400", "450"),
+			},
+			LoginInfoExpected: []e2eutils.LoginInfo{
+				e2eutils.NewLoginInfo("2021-02-01 12:30:00", "2000"),
+				e2eutils.NewLoginInfo("2021-02-01 13:30:00", "2000"),
+				e2eutils.NewLoginInfo("2021-02-01 13:30:00", "1950"),
+			},
 		}
-		assert.Equal(t, true, slices.IsSorted(offsetsBalanceUpdates))
 
-		offsetsLoginInfo := make([]int, 0, len(testData.LoginInfoExpected))
-		for _, bli := range testData.LoginInfoExpected {
-			o, ok := aggregatesLoginInfoBob[bli]
-			t.Logf("%v written to aggregate for bob is %v", bli, ok)
+		offsetsBalanceUpdatesBob := make([]int, 0, len(testDataBob.BalanceUpdatesExpected))
+		for _, bu := range testDataBob.BalanceUpdatesExpected {
+			o, ok := aggregatesBalanceUpdates[e2eutils.Bob][bu]
+			t.Logf("%v written to aggregate for %s is %v", bu, e2eutils.Bob, ok)
 			assert.Equal(t, true, ok)
-			offsetsLoginInfo = append(offsetsLoginInfo, o)
+			offsetsBalanceUpdatesBob = append(offsetsBalanceUpdatesBob, o)
 		}
-		assert.Equal(t, true, slices.IsSorted(offsetsLoginInfo))
+		assert.Equal(t, true, slices.IsSorted(offsetsBalanceUpdatesBob))
+
+		offsetsBalanceUpdatesJohn := make([]int, 0, len(testDataJohn.BalanceUpdatesExpected))
+		for _, bu := range testDataJohn.BalanceUpdatesExpected {
+			o, ok := aggregatesBalanceUpdates[e2eutils.John][bu]
+			t.Logf("%v written to aggregate for %s is %v", bu, e2eutils.John, ok)
+			assert.Equal(t, true, ok)
+			offsetsBalanceUpdatesJohn = append(offsetsBalanceUpdatesJohn, o)
+		}
+		assert.Equal(t, true, slices.IsSorted(offsetsBalanceUpdatesJohn))
+
+		offsetsLoginInfoBob := make([]int, 0, len(testDataBob.LoginInfoExpected))
+		for _, li := range testDataBob.LoginInfoExpected {
+			o, ok := aggregatesLoginInfo[e2eutils.Bob][li]
+			t.Logf("%v written to aggregate for %s is %v", li, e2eutils.Bob, ok)
+			assert.Equal(t, true, ok)
+			offsetsLoginInfoBob = append(offsetsLoginInfoBob, o)
+		}
+		assert.Equal(t, true, slices.IsSorted(offsetsLoginInfoBob))
+
+		offsetsLoginInfoJohn := make([]int, 0, len(testDataJohn.LoginInfoExpected))
+		for _, li := range testDataJohn.LoginInfoExpected {
+			o, ok := aggregatesLoginInfo[e2eutils.John][li]
+			t.Logf("%v written to aggregate for %s is %v", li, e2eutils.John, ok)
+			assert.Equal(t, true, ok)
+			offsetsLoginInfoJohn = append(offsetsLoginInfoJohn, o)
+		}
+		assert.Equal(t, true, slices.IsSorted(offsetsLoginInfoJohn))
 	})
 }

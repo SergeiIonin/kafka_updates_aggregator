@@ -16,6 +16,7 @@ func (ktr *KafkaTestReader) Read(expected int, count *int) ([]kafka.Message, err
 	ctx, cancel := context.WithCancel(context.Background())
 	messages := make([]kafka.Message, 0, expected)
 
+	// fixme use ctx w/ timeout instead
 	go func() {
 		select {
 		case <-time.After(25 * time.Second): // fixme why so long?
