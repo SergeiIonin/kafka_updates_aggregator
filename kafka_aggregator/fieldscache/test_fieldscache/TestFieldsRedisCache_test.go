@@ -50,7 +50,12 @@ func init() {
 }
 
 func TestFieldsRedisCache_test(t *testing.T) {
-	defer testutils.TerminateContainer(redisContainer, ctx, t)
+	defer func(container tc.Container, ctx context.Context, t *testing.T) {
+		err := testutils.TerminateTestContainer(container, ctx, t)
+		if err != nil {
+			t.Fatalf(err.Error())
+		}
+	}(redisContainer, ctx, t)
 
 	cache := fieldscache.NewFieldsRedisCache(redisAddr)
 

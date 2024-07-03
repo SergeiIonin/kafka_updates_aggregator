@@ -1,4 +1,4 @@
-package test
+package concurrent
 
 import (
 	"context"
@@ -23,11 +23,11 @@ var (
 	numTopics         = len(topics)
 	kafka_client      *kafka.Client
 	containerId       string
-	err               error
 	dockerClient      *client.Client
 )
 
 func init() {
+	var err error
 	dockerClient, err = client.NewClientWithOpts(client.WithVersion("1.45"))
 	if err != nil {
 		log.Printf("error creating docker client: %s", err.Error())
@@ -64,36 +64,16 @@ func init() {
 	); err != nil {
 		log.Fatalf("could not create topics %v", err)
 	}
-
-	testWriter := testutils.KafkaTestWriter{
-		Writer: &kafka.Writer{
-			Addr:     kafkaAddr,
-			Balancer: &kafka.LeastBytes{},
-		},
-	}
-
-	kafkaMsgs := make([]kafka.Message, 0, numTopics*msgsPerTopic)
-	for _, topic := range topics {
-		kafkaMsgs = append(kafkaMsgs, testWriter.MakeMessagesForTopic(topic, msgsPerTopic)...)
-	}
-	if err := testWriter.Write(kafkaMsgs); err != nil {
-		log.Fatalf("could not write messages %v", err)
-	}
-	err := testWriter.Close()
-	if err != nil {
-		log.Fatalf("could not close writer %v", err)
-		return
-	}
 }
 
 // todo add test_containers support and ensure test_kafka_aggregator topics exist and have messages before the test_kafka_aggregator runs
-func TestKafkaMerger_test(t *testing.T) {
-	cleanup := func() {
+func Test_KafkaMerger_Concurrent_test(t *testing.T) {
+	/*cleanup := func() {
 		testutils.CleanupAndGracefulShutdown(t, dockerClient, containerId)
 	}
 
 	//defer cleanup() // fixme it'd be great to rm containers in case t.Cleanup won't affect them
-	t.Cleanup(cleanup)
+	t.Cleanup(cleanup)*/
 
 	merger := merger.KafkaMerger{
 		Brokers:           []string{kafkaBroker},
@@ -104,9 +84,17 @@ func TestKafkaMerger_test(t *testing.T) {
 
 	duration := 60 * time.Second
 
+	testWriter := testutils.KafkaTestWriter{
+		Writer: &kafka.Writer{
+			Addr:     kafkaAddr,
+			Balancer: &kafka.LeastBytes{},
+		},
+	}
+
 	wg := &sync.WaitGroup{}
 	wg.Add(1)
-	testutils.RunWithTimeout(t, "merger", duration, merger.Merge, wg)
+	go writeTestMessages(&testWriter)
+	go testutils.RunWithTimeout(t, "merger", duration, merger.Merge, wg)
 	wg.Wait()
 
 	log.Printf("Merged source topic: %s", mergedSourceTopic)
@@ -144,4 +132,23 @@ func TestKafkaMerger_test(t *testing.T) {
 		}
 	}
 
+}
+
+func writeTestMessages(writer *testutils.KafkaTestWriter) {
+	kafkaMsgs := make([]kafka.Message, 0, numTopics*msgsPerTopic)
+	for _, topic := range topics {
+		kafkaMsgs = append(kafkaMsgs, writer.MakeMessagesForTopic(topic, msgsPerTopic)...)
+	}
+
+	for _, msg := range kafkaMsgs {
+		if err := writer.WriteMessage(msg); err != nil {
+			log.Fatalf("could not write messages %v", err)
+		}
+		time.Sleep(50 * time.Millisecond)
+	}
+
+	if err := writer.Close(); err != nil {
+		log.Fatalf("could not close writer %v", err)
+		return
+	}
 }

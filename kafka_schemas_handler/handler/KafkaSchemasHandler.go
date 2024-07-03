@@ -9,58 +9,69 @@ import (
 )
 
 type KafkaSchemasHandler struct {
-	*kafka.Reader
-	SchemasWriter
+	kafkaReader   *kafka.Reader
+	schemasWriter SchemasWriter
 	*KeyTypes
 }
 
-func NewKafkaSchemasHandler(kafkaReader *kafka.Reader, writer SchemasWriter) *KafkaSchemasHandler {
+func NewKafkaSchemasHandler(kafkaBroker string, writer SchemasWriter) *KafkaSchemasHandler {
+	kafkaReader := kafka.NewReader(kafka.ReaderConfig{
+		Brokers:  []string{kafkaBroker},
+		Topic:    "_schemas",
+		GroupID:  "schemas_handler", // fixme
+		MinBytes: 10e3,              // 10KB
+		MaxBytes: 10e6,              // 10MB
+	})
 	return &KafkaSchemasHandler{
-		Reader:        kafkaReader,
-		SchemasWriter: writer,
+		kafkaReader:   kafkaReader,
+		schemasWriter: writer,
 		KeyTypes:      NewKeyTypes(),
 	}
 }
 
 func (ksh *KafkaSchemasHandler) Run(ctx context.Context) {
+	log.Printf("[KafkaSchemasHandler] Started")
 	for {
-		msg, err := ksh.Reader.ReadMessage(ctx)
+		msg, err := ksh.kafkaReader.ReadMessage(ctx)
 		if err != nil {
-			log.Printf("Error reading message: %v", err)
+			log.Printf("[KafkaSchemasHandler] Error reading message: %v", err)
 			return
 		}
+		log.Printf("[KafkaSchemasHandler] Received message with key: %v", string(msg.Key))
 		keytype, err := ksh.GetKeytype(msg.Key)
 		if err != nil {
-			log.Printf("%v", err)
+			log.Printf("[KafkaSchemasHandler] error retrieving message key: %v", err)
 			continue
 		}
 		switch keytype {
 		case ksh.SCHEMA:
 			var schemaMsg SchemaMsg
 			err := json.Unmarshal(msg.Value, &schemaMsg)
+			log.Printf("[KafkaSchemasHandler] received new schema: %v", schemaMsg)
 			if err != nil {
-				log.Printf("Error unmarshalling schemaMsg: %v", err)
+				log.Printf("[KafkaSchemasHandler] Error unmarshalling schemaMsg: %v", err)
 				continue
 			}
 			id, err := ksh.SaveSchema(schemaMsg, ctx)
 			if err != nil {
-				log.Printf("Error saving schema: %v", err)
+				log.Printf("[KafkaSchemasHandler] Error saving schema: %v", err)
 				continue
 			}
-			log.Printf("Saved schema with id: %v", id)
+			log.Printf("[KafkaSchemasHandler] Saved schema with id: %v", id)
 		case ksh.DELETE_SUBJECT:
 			var deleteSubjectMsg DeleteSubjectMsg
 			err := json.Unmarshal(msg.Value, &deleteSubjectMsg)
+			log.Printf("[KafkaSchemasHandler] request to delete schema: %v", deleteSubjectMsg)
 			if err != nil {
-				log.Printf("Error unmarshalling deleteSubjectMsg: %v", err)
+				log.Printf("[KafkaSchemasHandler] Error unmarshalling deleteSubjectMsg: %v", err)
 				continue
 			}
 			id, err := ksh.DeleteSchema(deleteSubjectMsg, ctx)
 			if err != nil {
-				log.Printf("Error deleting schema: %v", err)
+				log.Printf("[KafkaSchemasHandler] Error deleting schema: %v", err)
 				continue
 			}
-			log.Printf("Deleted schema with id: %v", id)
+			log.Printf("[KafkaSchemasHandler] Deleted schema with id: %v", id)
 		}
 	}
 }
@@ -69,7 +80,7 @@ func getSchemaFromSchemaMsg(schemaMsg SchemaMsg) (domain.Schema, error) {
 	var schemaInternal SchemaInternal
 	err := json.Unmarshal([]byte(schemaMsg.Schema), &schemaInternal)
 	if err != nil {
-		log.Printf("Error unmarshalling SchemaMsg: %v", err)
+		log.Printf("[KafkaSchemasHandler] Error unmarshalling SchemaMsg: %v", err)
 		return domain.Schema{}, err
 	}
 	fields := make([]string, 0, len(schemaInternal.Fields))
@@ -82,14 +93,14 @@ func getSchemaFromSchemaMsg(schemaMsg SchemaMsg) (domain.Schema, error) {
 func (ksh *KafkaSchemasHandler) SaveSchema(msg SchemaMsg, ctx context.Context) (string, error) {
 	schema, err := getSchemaFromSchemaMsg(msg)
 	if err != nil {
-		log.Printf("Error getting schema from schemaMsg: %v", err)
+		log.Printf("[KafkaSchemasHandler] Error getting schema from schemaMsg: %v", err)
 		return "", err
 	}
-	return ksh.SchemasWriter.SaveSchema(schema, ctx)
+	return ksh.schemasWriter.SaveSchema(schema, ctx)
 }
 
 func (ksh *KafkaSchemasHandler) DeleteSchema(msg DeleteSubjectMsg, ctx context.Context) (string, error) {
-	return ksh.SchemasWriter.DeleteSchema(msg.Subject, msg.Version, ctx)
+	return ksh.schemasWriter.DeleteSchema(msg.Subject, msg.Version, ctx)
 }
 
 type SchemaMsg struct {

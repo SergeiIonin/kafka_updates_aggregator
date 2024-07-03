@@ -23,7 +23,6 @@ var (
 	numTopics         = len(topics)
 	kafka_client      *kafka.Client
 	containerId       string
-	err               error
 	dockerClient      *client.Client
 )
 
@@ -83,11 +82,56 @@ func CreateKafkaWithKRaftContainer(dockerClient *client.Client) (id string, err 
 		panic(err)
 	}
 
-	if err := dockerClient.ContainerStart(ctx, resp.ID, container.StartOptions{}); err != nil {
+	if err = dockerClient.ContainerStart(ctx, resp.ID, container.StartOptions{}); err != nil {
 		panic(err)
 	}
 
-	log.Println("WAITING...")
+	log.Println("WAITING FOR KAFKA CONTAINER TO START...")
+
+	wg := &sync.WaitGroup{}
+	wg.Add(1)
+	// fixme
+	go func() {
+		time.Sleep(7 * time.Second)
+		wg.Done()
+	}()
+	wg.Wait()
+
+	return resp.ID, nil
+}
+
+func CreateRedisContainer(dockerClient *client.Client) (id string, err error) {
+	ctx := context.Background()
+
+	config := &container.Config{
+		Image: "redis:latest",
+		ExposedPorts: nat.PortSet{
+			"6379": struct{}{},
+		},
+		Tty: false,
+	}
+
+	hostConfig := &container.HostConfig{
+		PortBindings: nat.PortMap{
+			"6379": []nat.PortBinding{
+				{
+					HostIP:   "0.0.0.0",
+					HostPort: "6379",
+				},
+			},
+		},
+	}
+
+	resp, err := dockerClient.ContainerCreate(ctx, config, hostConfig, nil, nil, "redis")
+	if err != nil {
+		panic(err)
+	}
+
+	if err = dockerClient.ContainerStart(ctx, resp.ID, container.StartOptions{}); err != nil {
+		panic(err)
+	}
+
+	log.Println("WAITING FOR REDIS CONTAINER TO START...")
 
 	wg := &sync.WaitGroup{}
 	wg.Add(1)
