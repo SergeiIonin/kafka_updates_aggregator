@@ -1,4 +1,4 @@
-package concurrent
+package test
 
 import (
 	"context"
@@ -9,6 +9,7 @@ import (
 	testutils "kafka_updates_aggregator/testutils"
 	"log"
 	"slices"
+	"strconv"
 	"sync"
 	"testing"
 	"time"
@@ -68,12 +69,12 @@ func init() {
 
 // todo add test_containers support and ensure test_kafka_aggregator topics exist and have messages before the test_kafka_aggregator runs
 func Test_KafkaMerger_Concurrent_test(t *testing.T) {
-	/*cleanup := func() {
+	cleanup := func() {
 		testutils.CleanupAndGracefulShutdown(t, dockerClient, containerId)
 	}
 
 	//defer cleanup() // fixme it'd be great to rm containers in case t.Cleanup won't affect them
-	t.Cleanup(cleanup)*/
+	t.Cleanup(cleanup)
 
 	merger := merger.KafkaMerger{
 		Brokers:           []string{kafkaBroker},
@@ -82,7 +83,7 @@ func Test_KafkaMerger_Concurrent_test(t *testing.T) {
 		MergedSourceTopic: mergedSourceTopic,
 	}
 
-	duration := 60 * time.Second
+	duration := 90 * time.Second
 
 	testWriter := testutils.KafkaTestWriter{
 		Writer: &kafka.Writer{
@@ -93,9 +94,8 @@ func Test_KafkaMerger_Concurrent_test(t *testing.T) {
 
 	wg := &sync.WaitGroup{}
 	wg.Add(1)
-	go writeTestMessages(&testWriter)
+	go writeTestMessagesWithInterleaving(&testWriter)
 	go testutils.RunWithTimeout(t, "merger", duration, merger.Merge, wg)
-	wg.Wait()
 
 	log.Printf("Merged source topic: %s", mergedSourceTopic)
 
@@ -111,10 +111,17 @@ func Test_KafkaMerger_Concurrent_test(t *testing.T) {
 	numMsgsTotal := msgsPerTopic * numTopics
 	count := 0
 	messages, err := testReader.Read(numMsgsTotal, &count)
+	wg.Wait()
 
 	if err != nil {
 		log.Printf("error reading messages %v", err)
 	}
+
+	timestamps := getTimestampsFromHeaders(messages)
+
+	log.Printf("all timestamps: %v", timestamps)
+	log.Printf("timestamps is sorted: %v", slices.IsSorted(timestamps))
+
 	t.Logf("Messages: %d", count)
 	if count != numMsgsTotal {
 		t.Fatalf("Expected %d messages, got %d", numMsgsTotal, count)
@@ -134,6 +141,20 @@ func Test_KafkaMerger_Concurrent_test(t *testing.T) {
 
 }
 
+func getTimestampsFromHeaders(messages []kafka.Message) []int64 {
+	times := make([]int64, 0, len(messages))
+	headersMap := make(map[string][]byte)
+	for _, m := range messages {
+		log.Printf("Header: %s", m.Headers)
+		for _, h := range m.Headers {
+			headersMap[h.Key] = h.Value
+		}
+		ts, _ := strconv.ParseInt(string(headersMap["time"]), 10, 64)
+		times = append(times, ts)
+	}
+	return times
+}
+
 func writeTestMessages(writer *testutils.KafkaTestWriter) {
 	kafkaMsgs := make([]kafka.Message, 0, numTopics*msgsPerTopic)
 	for _, topic := range topics {
@@ -150,5 +171,35 @@ func writeTestMessages(writer *testutils.KafkaTestWriter) {
 	if err := writer.Close(); err != nil {
 		log.Fatalf("could not close writer %v", err)
 		return
+	}
+}
+
+// In this case messages from different topics can interleave w/ each other in time
+func writeTestMessagesWithInterleaving(writer *testutils.KafkaTestWriter) {
+	wg := &sync.WaitGroup{}
+	ctx := context.Background()
+
+	for _, topic := range topics {
+		go func(topic string) {
+			wg.Add(1)
+			topicWriter := kafka.Writer{
+				Addr:     kafkaAddr,
+				Balancer: &kafka.LeastBytes{},
+			}
+			msgs := writer.MakeMessagesForTopic(topic, msgsPerTopic)
+			for _, msg := range msgs {
+				if err := topicWriter.WriteMessages(ctx, msg); err != nil {
+					log.Fatalf("could not write messages %v", err)
+				}
+				time.Sleep(50 * time.Millisecond)
+			}
+			defer func(topicWriter *kafka.Writer) {
+				wg.Done()
+				if err := topicWriter.Close(); err != nil {
+					log.Fatalf("could not close writer %v", err)
+					return
+				}
+			}(&topicWriter)
+		}(topic)
 	}
 }
