@@ -16,10 +16,10 @@ func NewFieldsRedisCache(redisAddr string) *FieldsRedisCache {
 	return &FieldsRedisCache{redisClient: redisClient}
 }
 
-func (frc *FieldsRedisCache) Get(id string, key string, ctx context.Context) (any, error) {
+func (frc *FieldsRedisCache) Get(ctx context.Context, id string, key string) (any, error) {
 	return frc.redisClient.HGet(ctx, id, key).Result()
 }
 
-func (frc *FieldsRedisCache) Upsert(id string, key string, value any, ctx context.Context) error {
+func (frc *FieldsRedisCache) Upsert(ctx context.Context, id string, key string, value any) error {
 	return frc.redisClient.HSet(ctx, id, key, value).Err()
 }

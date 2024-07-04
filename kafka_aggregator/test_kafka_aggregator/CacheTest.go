@@ -21,11 +21,11 @@ func (cache *FieldsCacheTest) Add(id string, key string, value any) error {
 	return nil
 }
 
-func (cache *FieldsCacheTest) Get(id string, key string, ctx context.Context) (any, error) {
+func (cache *FieldsCacheTest) Get(ctx context.Context, id string, key string) (any, error) {
 	return cache.Mapping[id][key], nil
 }
 
-func (cache *FieldsCacheTest) Upsert(id string, key string, value any, ctx context.Context) error {
+func (cache *FieldsCacheTest) Upsert(ctx context.Context, id string, key string, value any) error {
 	cache.Mapping[id][key] = value
 	return nil
 }

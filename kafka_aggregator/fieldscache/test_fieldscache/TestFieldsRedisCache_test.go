@@ -50,35 +50,35 @@ func init() {
 }
 
 func TestFieldsRedisCache_test(t *testing.T) {
-	defer func(container tc.Container, ctx context.Context, t *testing.T) {
-		err := testutils.TerminateTestContainer(container, ctx, t)
+	defer func(ctx context.Context, container tc.Container, t *testing.T) {
+		err := testutils.TerminateTestContainer(ctx, container)
 		if err != nil {
 			t.Fatalf(err.Error())
 		}
-	}(redisContainer, ctx, t)
+	}(ctx, redisContainer, t)
 
 	cache := fieldscache.NewFieldsRedisCache(redisAddr)
 
 	t.Run("insert, get and update fields in cache", func(t *testing.T) {
 		userId := "bob"
-		err := cache.Upsert(userId, "balance", 100, ctx)
+		err := cache.Upsert(ctx, userId, "balance", 100)
 		assert.NoError(t, err)
 
-		err = cache.Upsert(userId, "deposit", 200, ctx)
+		err = cache.Upsert(ctx, userId, "deposit", 200)
 		assert.NoError(t, err)
 
-		balance, err := cache.Get(userId, "balance", ctx)
+		balance, err := cache.Get(ctx, userId, "balance")
 		assert.NoError(t, err)
 		assert.Equal(t, "100", balance)
 
-		deposit, err := cache.Get(userId, "deposit", ctx)
+		deposit, err := cache.Get(ctx, userId, "deposit")
 		assert.NoError(t, err)
 		assert.Equal(t, "200", deposit)
 
-		err = cache.Upsert(userId, "balance", 150, ctx)
+		err = cache.Upsert(ctx, userId, "balance", 150)
 		assert.NoError(t, err)
 
-		balance, err = cache.Get(userId, "balance", ctx)
+		balance, err = cache.Get(ctx, userId, "balance")
 		assert.NoError(t, err)
 		assert.Equal(t, "150", balance)
 	})

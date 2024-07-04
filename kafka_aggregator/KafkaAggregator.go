@@ -55,7 +55,7 @@ func (ka *KafkaAggregator) Listen(ctx context.Context) {
 		}
 		id := getIdFromMessage(msg)
 		log.Printf("[KafkaAggregator] aggregation key %s", id) // fixme
-		if err = ka.WriteAggregate(id, msg, ctx); err != nil {
+		if err = ka.WriteAggregate(ctx, id, msg); err != nil {
 			if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
 				return
 			}
@@ -112,12 +112,12 @@ func (ka *KafkaAggregator) getSchemaFields(schema domain.Schema) (fields []strin
 	return fields, nil
 }
 
-func (ka *KafkaAggregator) composeMessageForSchema(id string, schema domain.Schema, ctx context.Context) (kafka.Message, error) {
+func (ka *KafkaAggregator) composeMessageForSchema(ctx context.Context, id string, schema domain.Schema) (kafka.Message, error) {
 	res := make(map[string]any)
 	fields := schema.Fields()
 	subject := schema.Subject()
 	for _, key := range fields {
-		value, err := ka.cache.Get(id, key, ctx)
+		value, err := ka.cache.Get(ctx, id, key)
 		if err != nil {
 			log.Printf("[KafkaAggregator] could not get value for key %s, %v", key, err)
 		}
@@ -141,7 +141,7 @@ func (ka *KafkaAggregator) composeMessageForSchema(id string, schema domain.Sche
 }
 
 // todo how id for the message is propagated?
-func (ka *KafkaAggregator) WriteAggregate(id string, m kafka.Message, ctx context.Context) error {
+func (ka *KafkaAggregator) WriteAggregate(ctx context.Context, id string, m kafka.Message) error {
 	// Get all keys from the json
 	log.Printf("[KafkaAggregator] Writing aggregate for id %s", id) // fixme
 	kvs := ka.toMap(m.Value)
@@ -156,14 +156,14 @@ func (ka *KafkaAggregator) WriteAggregate(id string, m kafka.Message, ctx contex
 	// Get all schemas for each field
 	field2Schemas := make(map[string][]domain.Schema)
 	for _, field := range fields {
-		schemas, err := ka.schemasReader.GetSchemasForField(field, ctx)
+		schemas, err := ka.schemasReader.GetSchemasForField(ctx, field)
 		if err != nil {
 			log.Printf("[KafkaAggregator] could not get schemas for field %s, %v", field, err)
 			errorsAll = append(errorsAll, err)
 		}
 		if len(schemas) != 0 {
 			value := kvs[field]
-			err = ka.cache.Upsert(id, field, value, ctx)
+			err = ka.cache.Upsert(ctx, id, field, value)
 			if err != nil {
 				log.Printf("[KafkaAggregator] could not update schemaswriter for id %s, key %s, value %s, error: %v", id, field, value, err)
 				errorsAll = append(errorsAll, err)
@@ -184,7 +184,7 @@ func (ka *KafkaAggregator) WriteAggregate(id string, m kafka.Message, ctx contex
 	// todo it's better to ensure that we write only in case there's un update for at least one field of the schema
 	for _, schema := range schemaMap {
 		var msg kafka.Message
-		msg, err := ka.composeMessageForSchema(id, schema, ctx)
+		msg, err := ka.composeMessageForSchema(ctx, id, schema)
 		if errors.Is(err, errors.New("no value")) {
 			continue
 		}
@@ -202,11 +202,11 @@ func (ka *KafkaAggregator) WriteAggregate(id string, m kafka.Message, ctx contex
 }
 
 type SchemasReader interface {
-	GetSchemasForField(field string, ctx context.Context) ([]domain.Schema, error)
+	GetSchemasForField(ctx context.Context, field string) ([]domain.Schema, error)
 }
 
 // FieldsCache is a plain storage from id to key-value pairs (e.g. userId -> {k0 -> v0, k1 -> v1, ...})
 type FieldsCache interface {
-	Get(id string, key string, ctx context.Context) (any, error) // todo should id be any? can we utilize generics?
-	Upsert(id string, key string, value any, ctx context.Context) error
+	Get(ctx context.Context, id string, key string) (any, error) // todo should id be any? can we utilize generics?
+	Upsert(ctx context.Context, id string, key string, value any) error
 }

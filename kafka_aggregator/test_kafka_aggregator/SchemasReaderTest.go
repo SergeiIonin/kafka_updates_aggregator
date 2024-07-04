@@ -15,6 +15,6 @@ func NewSchemasReaderTestImpl(underlying map[string][]domain.Schema) SchemasRead
 	}
 }
 
-func (srt SchemasReaderTestImpl) GetSchemasForField(field string, ctx context.Context) ([]domain.Schema, error) {
+func (srt SchemasReaderTestImpl) GetSchemasForField(ctx context.Context, field string) ([]domain.Schema, error) {
 	return srt.FieldToSchemas[field], nil
 }

@@ -21,7 +21,7 @@ func NewSchemasWriterTestImpl() *SchemasWriterTestImpl {
 	}
 }
 
-func (sw *SchemasWriterTestImpl) SaveSchema(schema domain.Schema, ctx context.Context) (string, error) {
+func (sw *SchemasWriterTestImpl) SaveSchema(ctx context.Context, schema domain.Schema) (string, error) {
 	log.Printf("saving schema %v", schema)
 	for _, field := range schema.Fields() {
 		schemas, ok := sw.Underlying[field]
@@ -48,7 +48,7 @@ func (sw *SchemasWriterTestImpl) SaveSchema(schema domain.Schema, ctx context.Co
 	return schema.Subject(), nil
 }
 
-func (sw *SchemasWriterTestImpl) DeleteSchema(subject string, version int, ctx context.Context) (string, error) {
+func (sw *SchemasWriterTestImpl) DeleteSchema(ctx context.Context, subject string, version int) (string, error) {
 	schemaKey := fmt.Sprintf("%s.%d", subject, version)
 	for field, schemas := range sw.Underlying {
 		i := -1

@@ -112,7 +112,7 @@ func TestKafkaAggregator_test(t *testing.T) {
 		Key:   []byte(userId),
 		Value: payload,
 	}
-	err = aggregator.WriteAggregate(userId, message, context.Background())
+	err = aggregator.WriteAggregate(context.Background(), userId, message)
 	assert.NoError(t, err)
 
 	testReader := testutils.KafkaTestReader{

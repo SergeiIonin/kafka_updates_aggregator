@@ -71,7 +71,7 @@ func (srw *SchemasRedisWriter) addSchemaForField(ctx context.Context, schema dom
 	return nil
 }
 
-func (srw *SchemasRedisWriter) SaveSchema(schema domain.Schema, ctx context.Context) (string, error) {
+func (srw *SchemasRedisWriter) SaveSchema(ctx context.Context, schema domain.Schema) (string, error) {
 	log.Printf("saving schema %v", schema)
 	schemaKey := schema.Key()
 
@@ -100,7 +100,7 @@ func (srw *SchemasRedisWriter) SaveSchema(schema domain.Schema, ctx context.Cont
 	return schemaKey, errors.New(msg)
 }
 
-func (srw *SchemasRedisWriter) DeleteSchema(subject string, version int, ctx context.Context) (string, error) {
+func (srw *SchemasRedisWriter) DeleteSchema(ctx context.Context, subject string, version int) (string, error) {
 	schemaKey := fmt.Sprintf("%s.%d", subject, version)
 	schemaRedisKey := fmt.Sprintf("%s%s", srw.schemaPrefix, schemaKey)
 	log.Printf("deleting schema %v", schemaKey)
