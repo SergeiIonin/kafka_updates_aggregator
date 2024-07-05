@@ -1,9 +1,11 @@
-package main
+To initialize kafka_merger:
+
+```go
+package kafka_merger
 
 import (
 	"fmt"
 	"gopkg.in/yaml.v3"
-	"kafka_updates_aggregator/kafka_merger/infra"
 	"log"
 	"os"
 )
@@ -21,7 +23,7 @@ func init() {
 	valuesPath = fmt.Sprintf("%s/kafka_merger/config/values.yaml", pwd)
 	configPath = fmt.Sprintf("%s/kafka_merger/config/merger_config.yaml", pwd)
 
-	configReader := infra.NewConfigReader()
+	configReader := NewConfigReader()
 
 	err := configReader.ReadConfig(configTplPath, valuesPath, configPath)
 	if err != nil {
@@ -31,9 +33,10 @@ func init() {
 }
 
 func main() {
-	var kafkaMergerConfig infra.KafkaMergerConfig
+	var kafkaMergerConfig KafkaMergerConfig
 	err := yaml.Unmarshal(configFile, &kafkaMergerConfig)
 	if err != nil {
 		log.Fatalf("Error parsing kafkaMergerConfig file: %v", err)
 	}
 }
+```

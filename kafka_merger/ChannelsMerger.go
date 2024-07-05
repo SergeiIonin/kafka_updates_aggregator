@@ -1,4 +1,4 @@
-package merger
+package kafka_merger
 
 import (
 	"container/heap"

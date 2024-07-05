@@ -13,7 +13,7 @@ import (
 	"kafka_updates_aggregator/kafka_aggregator"
 	"kafka_updates_aggregator/kafka_aggregator/fieldscache"
 	"kafka_updates_aggregator/kafka_aggregator/schemasreader"
-	"kafka_updates_aggregator/kafka_merger/infra/kafka/merger"
+	"kafka_updates_aggregator/kafka_merger"
 	"kafka_updates_aggregator/kafka_schemas_handler/handler"
 	"kafka_updates_aggregator/kafka_schemas_handler/schemaswriter"
 	"kafka_updates_aggregator/testutils"
@@ -162,7 +162,7 @@ func Test_e2eMultipleUsers_test(t *testing.T) {
 
 	schemasHandler := handler.NewKafkaSchemasHandler(kafkaBroker, schemasRedisWriter)
 
-	kafkaMerger := merger.NewKafkaMerger([]string{kafkaBroker}, sourceTopics, "e2e-group", mergedSourcesTopic)
+	kafkaMerger := kafka_merger.NewKafkaMerger([]string{kafkaBroker}, sourceTopics, "e2e-group", mergedSourcesTopic)
 
 	aggregator := kafka_aggregator.NewKafkaAggregator(kafkaBroker, mergedSourcesTopic, schemasRedisReader, fieldsRedisCache)
 
