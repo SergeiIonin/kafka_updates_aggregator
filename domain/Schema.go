@@ -5,7 +5,6 @@ import (
 	"fmt"
 )
 
-// fixme fields should be unexpported and we can only access them
 type Schema struct {
 	subject string
 	version int

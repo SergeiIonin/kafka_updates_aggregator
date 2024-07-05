@@ -20,7 +20,7 @@ var (
 	kafkaAddr         = kafka.TCP(kafkaBroker)
 	topics            = []string{"test_1", "test_2", "test_3"}
 	mergedSourceTopic = "test_merged"
-	msgsPerTopic      = 7
+	msgsPerTopic      = 10
 	numTopics         = len(topics)
 	kafka_client      *kafka.Client
 	containerId       string
@@ -83,21 +83,12 @@ func Test_KafkaMerger_Concurrent_test(t *testing.T) {
 		MergedSourceTopic: mergedSourceTopic,
 	}
 
-	duration := 90 * time.Second
-
 	testWriter := testutils.KafkaTestWriter{
 		Writer: &kafka.Writer{
 			Addr:     kafkaAddr,
 			Balancer: &kafka.LeastBytes{},
 		},
 	}
-
-	wg := &sync.WaitGroup{}
-	wg.Add(1)
-	go writeTestMessagesWithInterleaving(&testWriter)
-	go testutils.RunWithTimeout(t, "merger", duration, merger.Merge, wg)
-
-	log.Printf("Merged source topic: %s", mergedSourceTopic)
 
 	testReader := testutils.KafkaTestReader{
 		kafka.NewReader(kafka.ReaderConfig{
@@ -108,10 +99,13 @@ func Test_KafkaMerger_Concurrent_test(t *testing.T) {
 		}),
 	}
 
+	go writeTestMessagesWithInterleaving(&testWriter)
+	go merger.Merge(context.Background())
 	numMsgsTotal := msgsPerTopic * numTopics
 	count := 0
-	messages, err := testReader.Read(numMsgsTotal, &count)
-	wg.Wait()
+	messages, err := testReader.ReadPlain(numMsgsTotal, &count)
+
+	log.Printf("Merged source topic: %s", mergedSourceTopic)
 
 	if err != nil {
 		log.Printf("error reading messages %v", err)
@@ -138,7 +132,6 @@ func Test_KafkaMerger_Concurrent_test(t *testing.T) {
 			t.Fatalf("Offsets for topic %s are not sorted", topic)
 		}
 	}
-
 }
 
 func getTimestampsFromHeaders(messages []kafka.Message) []int64 {
@@ -155,51 +148,34 @@ func getTimestampsFromHeaders(messages []kafka.Message) []int64 {
 	return times
 }
 
-func writeTestMessages(writer *testutils.KafkaTestWriter) {
-	kafkaMsgs := make([]kafka.Message, 0, numTopics*msgsPerTopic)
-	for _, topic := range topics {
-		kafkaMsgs = append(kafkaMsgs, writer.MakeMessagesForTopic(topic, msgsPerTopic)...)
-	}
-
-	for _, msg := range kafkaMsgs {
-		if err := writer.WriteMessage(msg); err != nil {
-			log.Fatalf("could not write messages %v", err)
-		}
-		time.Sleep(50 * time.Millisecond)
-	}
-
-	if err := writer.Close(); err != nil {
-		log.Fatalf("could not close writer %v", err)
-		return
-	}
-}
-
 // In this case messages from different topics can interleave w/ each other in time
 func writeTestMessagesWithInterleaving(writer *testutils.KafkaTestWriter) {
+	log.Printf("Writing messages with interleaving")
 	wg := &sync.WaitGroup{}
 	ctx := context.Background()
 
 	for _, topic := range topics {
+		topicWriter := kafka.Writer{
+			Addr:     kafkaAddr,
+			Balancer: &kafka.LeastBytes{},
+		}
 		go func(topic string) {
-			wg.Add(1)
-			topicWriter := kafka.Writer{
-				Addr:     kafkaAddr,
-				Balancer: &kafka.LeastBytes{},
-			}
-			msgs := writer.MakeMessagesForTopic(topic, msgsPerTopic)
-			for _, msg := range msgs {
-				if err := topicWriter.WriteMessages(ctx, msg); err != nil {
-					log.Fatalf("could not write messages %v", err)
-				}
-				time.Sleep(50 * time.Millisecond)
-			}
-			defer func(topicWriter *kafka.Writer) {
+			defer func() {
 				wg.Done()
 				if err := topicWriter.Close(); err != nil {
 					log.Fatalf("could not close writer %v", err)
 					return
 				}
-			}(&topicWriter)
+			}()
+			wg.Add(1)
+			msgs := writer.MakeMessagesForTopic(topic, msgsPerTopic)
+			for _, msg := range msgs {
+				log.Printf("Writing message %s", string(msg.Value))
+				if err := topicWriter.WriteMessages(ctx, msg); err != nil {
+					log.Fatalf("could not write messages %v", err)
+				}
+				time.Sleep(50 * time.Millisecond)
+			}
 		}(topic)
 	}
 }

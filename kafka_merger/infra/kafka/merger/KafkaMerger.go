@@ -23,9 +23,9 @@ func createReader(brokers []string, topic string, groupId string) *kafka.Reader 
 	config := kafka.ReaderConfig{
 		Brokers:     brokers,
 		Topic:       topic,
-		GroupID:     groupId, // fixme
-		MinBytes:    10e3,    // 10KB
-		MaxBytes:    10e6,    // 10MB
+		GroupID:     groupId,
+		MinBytes:    10e3, // 10KB
+		MaxBytes:    10e6, // 10MB
 		StartOffset: kafka.FirstOffset,
 	}
 	return kafka.NewReader(config)
@@ -91,6 +91,7 @@ func writeToMergedTopic(ctx context.Context, brokers []string, topic string, ch 
 }
 
 func (merger *KafkaMerger) Merge(ctx context.Context) {
+	log.Println("[KafkaMerger] started")
 	chansMerger := ChannelsMerger{}
 
 	readers := make([]*kafka.Reader, len(merger.Topics))

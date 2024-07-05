@@ -6,6 +6,6 @@ import (
 )
 
 type SchemasWriter interface {
-	SaveSchema(ctx context.Context, schema domain.Schema) (string, error) // fixme should accept Schema
+	SaveSchema(ctx context.Context, schema domain.Schema) (string, error)
 	DeleteSchema(ctx context.Context, subject string, version int) (string, error)
 }

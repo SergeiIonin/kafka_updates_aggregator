@@ -18,9 +18,9 @@ func NewKafkaSchemasHandler(kafkaBroker string, writer SchemasWriter) *KafkaSche
 	kafkaReader := kafka.NewReader(kafka.ReaderConfig{
 		Brokers:  []string{kafkaBroker},
 		Topic:    "_schemas",
-		GroupID:  "schemas_handler", // fixme
-		MinBytes: 10e3,              // 10KB
-		MaxBytes: 10e6,              // 10MB
+		GroupID:  "schemas_handler",
+		MinBytes: 10e3, // 10KB
+		MaxBytes: 10e6, // 10MB
 	})
 	return &KafkaSchemasHandler{
 		kafkaReader:   kafkaReader,

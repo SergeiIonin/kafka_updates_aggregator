@@ -27,7 +27,9 @@ func (m *ChannelsMerger) Merge(ctx context.Context, output chan<- kafka.Message,
 			}()
 			log.Printf("Start reading from channel %d", i) // fixme rm
 			for msg := range ch {
+				mutex.Lock()
 				heap.Push(&pq, msg)
+				mutex.Unlock()
 				log.Printf("size of queue = %d", len(pq)) // fixme rm
 			}
 		}(ch)
@@ -56,6 +58,7 @@ func (m *ChannelsMerger) Merge(ctx context.Context, output chan<- kafka.Message,
 				output <- heap.Pop(&pq).(kafka.Message)
 			}
 			mutex.Unlock()
+			log.Printf("Messages flushed") // fixme rm
 		}
 	}
 }
