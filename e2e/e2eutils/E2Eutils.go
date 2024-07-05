@@ -66,28 +66,28 @@ func NewWithdrawal(withdrawal int) Withdrawal {
 
 type BalanceUpdates struct {
 	topic      string
-	Balance    string `json:"balance"`    // fixme: should be int
-	Deposit    string `json:"deposit"`    // fixme: should be int
-	Withdrawal string `json:"withdrawal"` // fixme: should be int
+	Balance    int `json:"balance"`    // fixme: should be int
+	Deposit    int `json:"deposit"`    // fixme: should be int
+	Withdrawal int `json:"withdrawal"` // fixme: should be int
 }
 
 func (d BalanceUpdates) Topic() string {
 	return d.topic
 }
-func NewBalanceUpdates(balance string, deposit string, withdrawal string) BalanceUpdates {
+func NewBalanceUpdates(balance int, deposit int, withdrawal int) BalanceUpdates {
 	return BalanceUpdates{topic: "", Balance: balance, Deposit: deposit, Withdrawal: withdrawal}
 }
 
 type LoginInfo struct {
 	topic     string
 	LoginTime string `json:"login_time"`
-	Balance   string `json:"balance"` // fixme: should be int
+	Balance   int    `json:"balance"` // fixme: should be int
 }
 
 func (d LoginInfo) Topic() string {
 	return d.topic
 }
-func NewLoginInfo(loginTime string, balance string) LoginInfo {
+func NewLoginInfo(loginTime string, balance int) LoginInfo {
 	return LoginInfo{topic: "", LoginTime: loginTime, Balance: balance}
 }
 

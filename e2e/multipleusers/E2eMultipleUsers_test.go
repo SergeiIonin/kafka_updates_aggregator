@@ -330,27 +330,27 @@ func CollectAggregationsForMultipleUsers(t *testing.T, aggregatedMsgsChans []cha
 func assertAggregations(t *testing.T, aggregatesBalanceUpdates map[string]map[e2eutils.BalanceUpdates]int, aggregatesLoginInfo map[string]map[e2eutils.LoginInfo]int) {
 	testDataBob := e2eutils.TestData{
 		BalanceUpdatesExpected: []e2eutils.BalanceUpdates{
-			e2eutils.NewBalanceUpdates("1000", "100", "150"),
-			e2eutils.NewBalanceUpdates("950", "300", "150"),
-			e2eutils.NewBalanceUpdates("950", "300", "350"),
+			e2eutils.NewBalanceUpdates(1000, 100, 150),
+			e2eutils.NewBalanceUpdates(950, 300, 150),
+			e2eutils.NewBalanceUpdates(950, 300, 350),
 		},
 		LoginInfoExpected: []e2eutils.LoginInfo{
-			e2eutils.NewLoginInfo("2021-01-01 12:00:00", "1000"),
-			e2eutils.NewLoginInfo("2021-01-01 13:00:00", "1000"),
-			e2eutils.NewLoginInfo("2021-01-01 13:00:00", "950"),
+			e2eutils.NewLoginInfo("2021-01-01 12:00:00", 1000),
+			e2eutils.NewLoginInfo("2021-01-01 13:00:00", 1000),
+			e2eutils.NewLoginInfo("2021-01-01 13:00:00", 950),
 		},
 	}
 
 	testDataJohn := e2eutils.TestData{
 		BalanceUpdatesExpected: []e2eutils.BalanceUpdates{
-			e2eutils.NewBalanceUpdates("2000", "200", "250"),
-			e2eutils.NewBalanceUpdates("1950", "400", "250"),
-			e2eutils.NewBalanceUpdates("1950", "400", "450"),
+			e2eutils.NewBalanceUpdates(2000, 200, 250),
+			e2eutils.NewBalanceUpdates(1950, 400, 250),
+			e2eutils.NewBalanceUpdates(1950, 400, 450),
 		},
 		LoginInfoExpected: []e2eutils.LoginInfo{
-			e2eutils.NewLoginInfo("2021-02-01 12:30:00", "2000"),
-			e2eutils.NewLoginInfo("2021-02-01 13:30:00", "2000"),
-			e2eutils.NewLoginInfo("2021-02-01 13:30:00", "1950"),
+			e2eutils.NewLoginInfo("2021-02-01 12:30:00", 2000),
+			e2eutils.NewLoginInfo("2021-02-01 13:30:00", 2000),
+			e2eutils.NewLoginInfo("2021-02-01 13:30:00", 1950),
 		},
 	}
 

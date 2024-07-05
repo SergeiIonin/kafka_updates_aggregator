@@ -91,7 +91,7 @@ func TestKafkaAggregator_test(t *testing.T) {
 
 	schema := domain.CreateSchema("user_balance_updates", 1,
 		1,
-		[]string{"user_id", "balance", "deposit", "withdrawal"},
+		[]domain.Field{{"user_id", "string"}, {"balance", "int"}, {"deposit", "int"}, {"withdrawal", "int"}},
 		schemaRaw)
 
 	userId := "bob"

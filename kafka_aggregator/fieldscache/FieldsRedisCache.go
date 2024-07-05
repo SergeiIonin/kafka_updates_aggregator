@@ -2,6 +2,7 @@ package fieldscache
 
 import (
 	"context"
+	"errors"
 	"github.com/redis/go-redis/v9"
 )
 
@@ -16,8 +17,13 @@ func NewFieldsRedisCache(redisAddr string) *FieldsRedisCache {
 	return &FieldsRedisCache{redisClient: redisClient}
 }
 
-func (frc *FieldsRedisCache) Get(ctx context.Context, id string, key string) (any, error) {
-	return frc.redisClient.HGet(ctx, id, key).Result()
+// it basically returns (string, error)
+func (frc *FieldsRedisCache) Get(ctx context.Context, id string, key string) (string, error) {
+	res, err := frc.redisClient.HGet(ctx, id, key).Result()
+	if errors.Is(err, redis.Nil) {
+		return "", nil
+	}
+	return res, err
 }
 
 func (frc *FieldsRedisCache) Upsert(ctx context.Context, id string, key string, value any) error {

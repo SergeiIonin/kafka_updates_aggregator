@@ -83,9 +83,9 @@ func getSchemaFromSchemaMsg(schemaMsg SchemaMsg) (domain.Schema, error) {
 		log.Printf("[KafkaSchemasHandler] Error unmarshalling SchemaMsg: %v", err)
 		return domain.Schema{}, err
 	}
-	fields := make([]string, 0, len(schemaInternal.Fields))
+	fields := make([]domain.Field, 0, len(schemaInternal.Fields))
 	for _, f := range schemaInternal.Fields {
-		fields = append(fields, f.Name)
+		fields = append(fields, domain.Field{f.Name, f.Type})
 	}
 	return *domain.CreateSchema(schemaMsg.Subject, schemaMsg.Version, schemaMsg.ID, fields, schemaMsg.Schema), nil
 }

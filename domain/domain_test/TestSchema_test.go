@@ -8,7 +8,8 @@ import (
 )
 
 func TestSchema_test(t *testing.T) {
-	sc0 := domain.CreateSchema("user_balance_updates", 1, 1, []string{"user_id", "balance", "deposit", "withdrawal"},
+	sc0 := domain.CreateSchema("user_balance_updates", 1, 1,
+		[]domain.Field{{"user_id", "string"}, {"balance", "int"}, {"deposit", "int"}, {"withdrawal", "int"}},
 		`{
 						"type": "record",
 						"name": "user_balance_updates",
