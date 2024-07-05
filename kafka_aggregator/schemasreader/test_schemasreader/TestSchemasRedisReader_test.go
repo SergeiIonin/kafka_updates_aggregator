@@ -62,13 +62,13 @@ func init() {
 
 func TestSchemasRedisReader_test(t *testing.T) {
 	defer func(container tc.Container, ctx context.Context, t *testing.T) {
-		err := testutils.TerminateTestContainer(container, ctx, t)
+		err := testutils.TerminateTestContainer(ctx, container)
 		if err != nil {
 			t.Fatalf(err.Error())
 		}
 	}(redisContainer, ctx, t)
 
-	sc0 := domain.CreateSchema("user_balance_updates", 1, 1, []string{"user_id", "balance", "deposit", "withdrawal"},
+	sc0 := domain.CreateSchema("user_balance_updates", 1, 1, []domain.Field{{"user_id", "string"}, {"balance", "int"}, {"deposit", "int"}, {"withdrawal", "int"}},
 		`{
 						"type": "record",
 						"name": "user_balance_updates",
@@ -80,7 +80,7 @@ func TestSchemasRedisReader_test(t *testing.T) {
 							]
 					}`)
 
-	sc1 := domain.CreateSchema("user_login", 1, 1, []string{"user_id", "balance", "time"},
+	sc1 := domain.CreateSchema("user_login", 1, 1, []domain.Field{{"user_id", "string"}, {"balance", "int"}, {"time", "string"}},
 		`{
 				"type": "record",
 				"name": "user_login",
@@ -102,7 +102,7 @@ func TestSchemasRedisReader_test(t *testing.T) {
 
 	t.Run("Read nothing if there's no schemas for field", func(t *testing.T) {
 		field := "user_id"
-		res, err := schemasRedisReader.GetSchemasForField(field, ctx)
+		res, err := schemasRedisReader.GetSchemasForKey(ctx, field)
 
 		assert.NoError(t, err)
 		assert.Equal(t, 0, len(res))
@@ -117,7 +117,7 @@ func TestSchemasRedisReader_test(t *testing.T) {
 
 		err := redisClient.HSet(ctx, fieldRedisKey, sc0.Key(), string(schemaRaw)).Err()
 		assert.NoError(t, err)
-		schemasFetched, err := schemasRedisReader.GetSchemasForField(field, ctx)
+		schemasFetched, err := schemasRedisReader.GetSchemasForKey(ctx, field)
 		assert.NoError(t, err)
 
 		t.Logf("schema's key = %s", schemasFetched[0].Key())
@@ -142,7 +142,7 @@ func TestSchemasRedisReader_test(t *testing.T) {
 		err = redisClient.HSet(ctx, fieldRedisKey, sc1.Key(), string(schema1Raw)).Err()
 		assert.NoError(t, err)
 
-		schemasFetched, err := schemasRedisReader.GetSchemasForField(field, ctx)
+		schemasFetched, err := schemasRedisReader.GetSchemasForKey(ctx, field)
 		assert.NoError(t, err)
 		assert.Equal(t, 2, len(schemasFetched))
 

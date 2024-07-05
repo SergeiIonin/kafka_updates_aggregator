@@ -9,7 +9,7 @@ import (
 	tc "github.com/testcontainers/testcontainers-go"
 )
 
-func TerminateTestContainer(container tc.Container, ctx context.Context) error {
+func TerminateTestContainer(ctx context.Context, container tc.Container) error {
 	if err := container.Terminate(ctx); err != nil {
 		return fmt.Errorf("error terminating testcontainer %v", err)
 	}

@@ -39,9 +39,9 @@ func main() {
 	reader := kafka.NewReader(kafka.ReaderConfig{
 		Brokers:  kafkaBrokers,
 		Topic:    "_schemas",
-		GroupID:  "schemas_handler", // fixme
-		MinBytes: 10e3,              // 10KB
-		MaxBytes: 10e6,              // 10MB
+		GroupID:  "schemas_handler",
+		MinBytes: 10e3, // 10KB
+		MaxBytes: 10e6, // 10MB
 	})
 	schemasDAO := NewSchemasDAOImpl()
 	KafkaSchemasHandler := handler.NewKafkaSchemasHandler(reader, schemasDAO)

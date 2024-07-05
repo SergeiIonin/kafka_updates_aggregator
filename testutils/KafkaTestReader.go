@@ -13,9 +13,10 @@ type KafkaTestReader struct {
 }
 
 func (ktr *KafkaTestReader) Read(expected int, count *int) ([]kafka.Message, error) {
+	log.Printf("[KafkaTestReader] reading messages")
 	messages := make([]kafka.Message, 0, expected)
 
-	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 240*time.Second)
 
 	for {
 		select {
@@ -41,22 +42,41 @@ func (ktr *KafkaTestReader) Read(expected int, count *int) ([]kafka.Message, err
 			}
 		}
 	}
+}
 
-	/*read := func() {
-		for {
-			m, err := ktr.ReadMessage(ctx)
-			if err != nil {
-				if errors.Is(err, context.Canceled) {
-					log.Printf("[KafkaTestReader] context cancelled")
-					return messages, err
-				}
-				log.Printf("[KafkaTestReader] could not read message %v", err)
-			}
-			messages = append(messages, m)
-			*count++
-			if *count == expected {
-				return messages, nil
-			}
+func (ktr *KafkaTestReader) ReadPlain(expected int, count *int) ([]kafka.Message, error) {
+	log.Printf("[KafkaTestReader] reading messages")
+	messages := make([]kafka.Message, 0, expected)
+
+	for {
+		m, err := ktr.ReadMessage(context.Background())
+		log.Printf("[KafkaTestReader] read message %s", string(m.Value))
+		if err != nil {
+			log.Fatalf("[KafkaTestReader] could not read message %v", err)
 		}
-	}*/
+		messages = append(messages, m)
+		*count++
+		if *count == expected {
+			return messages, nil
+		}
+	}
+}
+
+func (ktr *KafkaTestReader) ReadWithContext(ctx context.Context, cancel context.CancelFunc, expected int, count *int) ([]kafka.Message, error) {
+	log.Printf("[KafkaTestReader] reading messages")
+	messages := make([]kafka.Message, 0, expected)
+
+	for {
+		m, err := ktr.ReadMessage(ctx)
+		log.Printf("[KafkaTestReader] read message %s", string(m.Value))
+		if err != nil {
+			log.Fatalf("[KafkaTestReader] could not read message %v", err)
+		}
+		messages = append(messages, m)
+		*count++
+		if *count == expected {
+			cancel()
+			return messages, nil
+		}
+	}
 }

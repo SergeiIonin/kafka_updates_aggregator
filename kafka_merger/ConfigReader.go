@@ -1,4 +1,4 @@
-package infra
+package kafka_merger
 
 import (
 	"github.com/pkg/errors"

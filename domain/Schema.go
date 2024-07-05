@@ -5,16 +5,20 @@ import (
 	"fmt"
 )
 
-// fixme fields should be unexpported and we can only access them
 type Schema struct {
 	subject string
 	version int
 	id      int
-	fields  []string
+	fields  []Field
 	schema  string // a raw json schema
 }
 
-func CreateSchema(subject string, version int, id int, fields []string, schema string) *Schema {
+type Field struct {
+	Name string `json:"name"`
+	Type string `json:"type"`
+}
+
+func CreateSchema(subject string, version int, id int, fields []Field, schema string) *Schema {
 	return &Schema{subject, version, id, fields, schema}
 }
 
@@ -35,7 +39,7 @@ func (s *Schema) ID() int {
 	return s.id
 }
 
-func (s *Schema) Fields() []string {
+func (s *Schema) Fields() []Field {
 	return s.fields
 }
 
@@ -45,11 +49,11 @@ func (s *Schema) Schema() string {
 
 func (s *Schema) MarshalJSON() ([]byte, error) {
 	return json.Marshal(&struct {
-		Subject string   `json:"subject"`
-		Version int      `json:"version"`
-		ID      int      `json:"id"`
-		Fields  []string `json:"fields"`
-		Schema  string   `json:"schema"`
+		Subject string  `json:"subject"`
+		Version int     `json:"version"`
+		ID      int     `json:"id"`
+		Fields  []Field `json:"fields"`
+		Schema  string  `json:"schema"`
 	}{
 		Subject: s.subject,
 		Version: s.version,
@@ -62,11 +66,11 @@ func (s *Schema) MarshalJSON() ([]byte, error) {
 func (s *Schema) UnmarshalJSON(data []byte) error {
 	type Alias Schema
 	aux := &struct {
-		Subject string   `json:"subject"`
-		Version int      `json:"version"`
-		ID      int      `json:"id"`
-		Fields  []string `json:"fields"`
-		Schema  string   `json:"schema"`
+		Subject string  `json:"subject"`
+		Version int     `json:"version"`
+		ID      int     `json:"id"`
+		Fields  []Field `json:"fields"`
+		Schema  string  `json:"schema"`
 		*Alias
 	}{
 		Alias: (*Alias)(s),

@@ -43,20 +43,24 @@ func (srw *SchemasRedisWriter) containsSchema(schema domain.Schema) bool {
 
 func (srw *SchemasRedisWriter) addSchemaKey(schema domain.Schema) error {
 	schemaRedisKey := fmt.Sprintf("%s%s", srw.schemaPrefix, schema.Key())
-	fieldsJson, err := json.Marshal(schema.Fields())
+	fieldsKeys := make([]string, 0, len(schema.Fields()))
+	for _, field := range schema.Fields() {
+		fieldsKeys = append(fieldsKeys, field.Name)
+	}
+	fieldsKeysJson, err := json.Marshal(fieldsKeys)
 	if err != nil {
 		log.Printf("Error marshalling fields for schema %s to json: %v", schemaRedisKey, err)
 		return err
 	}
-	if err := srw.redis.Set(context.Background(), schemaRedisKey, string(fieldsJson), 0).Err(); err != nil {
+	if err := srw.redis.Set(context.Background(), schemaRedisKey, string(fieldsKeysJson), 0).Err(); err != nil {
 		log.Printf("Error setting schema schemaRedisKey in redis: %v", err)
 		return err
 	}
 	return nil
 }
 
-func (srw *SchemasRedisWriter) addSchemaForField(ctx context.Context, schema domain.Schema, field string) error {
-	fieldRedisKey := fmt.Sprintf("%s%s", srw.fieldPrefix, field)
+func (srw *SchemasRedisWriter) addSchemaForField(ctx context.Context, schema domain.Schema, field domain.Field) error {
+	fieldRedisKey := fmt.Sprintf("%s%s", srw.fieldPrefix, field.Name)
 
 	schemaRaw, err := json.Marshal(&schema)
 	if err != nil {
@@ -71,7 +75,7 @@ func (srw *SchemasRedisWriter) addSchemaForField(ctx context.Context, schema dom
 	return nil
 }
 
-func (srw *SchemasRedisWriter) SaveSchema(schema domain.Schema, ctx context.Context) (string, error) {
+func (srw *SchemasRedisWriter) SaveSchema(ctx context.Context, schema domain.Schema) (string, error) {
 	log.Printf("saving schema %v", schema)
 	schemaKey := schema.Key()
 
@@ -100,7 +104,7 @@ func (srw *SchemasRedisWriter) SaveSchema(schema domain.Schema, ctx context.Cont
 	return schemaKey, errors.New(msg)
 }
 
-func (srw *SchemasRedisWriter) DeleteSchema(subject string, version int, ctx context.Context) (string, error) {
+func (srw *SchemasRedisWriter) DeleteSchema(ctx context.Context, subject string, version int) (string, error) {
 	schemaKey := fmt.Sprintf("%s.%d", subject, version)
 	schemaRedisKey := fmt.Sprintf("%s%s", srw.schemaPrefix, schemaKey)
 	log.Printf("deleting schema %v", schemaKey)

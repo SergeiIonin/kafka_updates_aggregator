@@ -91,7 +91,7 @@ func TestKafkaAggregator_test(t *testing.T) {
 
 	schema := domain.CreateSchema("user_balance_updates", 1,
 		1,
-		[]string{"user_id", "balance", "deposit", "withdrawal"},
+		[]domain.Field{{"user_id", "string"}, {"balance", "int"}, {"deposit", "int"}, {"withdrawal", "int"}},
 		schemaRaw)
 
 	userId := "bob"
@@ -112,7 +112,7 @@ func TestKafkaAggregator_test(t *testing.T) {
 		Key:   []byte(userId),
 		Value: payload,
 	}
-	err = aggregator.WriteAggregate(userId, message, context.Background())
+	err = aggregator.WriteAggregate(context.Background(), userId, message)
 	assert.NoError(t, err)
 
 	testReader := testutils.KafkaTestReader{

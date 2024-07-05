@@ -18,9 +18,9 @@ func NewKafkaSchemasHandler(kafkaBroker string, writer SchemasWriter) *KafkaSche
 	kafkaReader := kafka.NewReader(kafka.ReaderConfig{
 		Brokers:  []string{kafkaBroker},
 		Topic:    "_schemas",
-		GroupID:  "schemas_handler", // fixme
-		MinBytes: 10e3,              // 10KB
-		MaxBytes: 10e6,              // 10MB
+		GroupID:  "schemas_handler",
+		MinBytes: 10e3, // 10KB
+		MaxBytes: 10e6, // 10MB
 	})
 	return &KafkaSchemasHandler{
 		kafkaReader:   kafkaReader,
@@ -52,7 +52,7 @@ func (ksh *KafkaSchemasHandler) Run(ctx context.Context) {
 				log.Printf("[KafkaSchemasHandler] Error unmarshalling schemaMsg: %v", err)
 				continue
 			}
-			id, err := ksh.SaveSchema(schemaMsg, ctx)
+			id, err := ksh.SaveSchema(ctx, schemaMsg)
 			if err != nil {
 				log.Printf("[KafkaSchemasHandler] Error saving schema: %v", err)
 				continue
@@ -66,7 +66,7 @@ func (ksh *KafkaSchemasHandler) Run(ctx context.Context) {
 				log.Printf("[KafkaSchemasHandler] Error unmarshalling deleteSubjectMsg: %v", err)
 				continue
 			}
-			id, err := ksh.DeleteSchema(deleteSubjectMsg, ctx)
+			id, err := ksh.DeleteSchema(ctx, deleteSubjectMsg)
 			if err != nil {
 				log.Printf("[KafkaSchemasHandler] Error deleting schema: %v", err)
 				continue
@@ -83,24 +83,24 @@ func getSchemaFromSchemaMsg(schemaMsg SchemaMsg) (domain.Schema, error) {
 		log.Printf("[KafkaSchemasHandler] Error unmarshalling SchemaMsg: %v", err)
 		return domain.Schema{}, err
 	}
-	fields := make([]string, 0, len(schemaInternal.Fields))
+	fields := make([]domain.Field, 0, len(schemaInternal.Fields))
 	for _, f := range schemaInternal.Fields {
-		fields = append(fields, f.Name)
+		fields = append(fields, domain.Field{f.Name, f.Type})
 	}
 	return *domain.CreateSchema(schemaMsg.Subject, schemaMsg.Version, schemaMsg.ID, fields, schemaMsg.Schema), nil
 }
 
-func (ksh *KafkaSchemasHandler) SaveSchema(msg SchemaMsg, ctx context.Context) (string, error) {
+func (ksh *KafkaSchemasHandler) SaveSchema(ctx context.Context, msg SchemaMsg) (string, error) {
 	schema, err := getSchemaFromSchemaMsg(msg)
 	if err != nil {
 		log.Printf("[KafkaSchemasHandler] Error getting schema from schemaMsg: %v", err)
 		return "", err
 	}
-	return ksh.schemasWriter.SaveSchema(schema, ctx)
+	return ksh.schemasWriter.SaveSchema(ctx, schema)
 }
 
-func (ksh *KafkaSchemasHandler) DeleteSchema(msg DeleteSubjectMsg, ctx context.Context) (string, error) {
-	return ksh.schemasWriter.DeleteSchema(msg.Subject, msg.Version, ctx)
+func (ksh *KafkaSchemasHandler) DeleteSchema(ctx context.Context, msg DeleteSubjectMsg) (string, error) {
+	return ksh.schemasWriter.DeleteSchema(ctx, msg.Subject, msg.Version)
 }
 
 type SchemaMsg struct {

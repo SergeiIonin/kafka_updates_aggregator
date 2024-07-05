@@ -61,14 +61,14 @@ func init() {
 }
 
 func TestSchemasRedisWriter_test(t *testing.T) {
-	defer func(container tc.Container, ctx context.Context, t *testing.T) {
-		err := testutils.TerminateTestContainer(container, ctx, t)
+	defer func(ctx context.Context, container tc.Container, t *testing.T) {
+		err := testutils.TerminateTestContainer(ctx, container)
 		if err != nil {
 			t.Fatalf(err.Error())
 		}
-	}(redisContainer, ctx, t)
+	}(ctx, redisContainer, t)
 
-	sc0 := domain.CreateSchema("user_balance_updates", 1, 1, []string{"user_id", "balance", "deposit", "withdrawal"},
+	sc0 := domain.CreateSchema("user_balance_updates", 1, 1, []domain.Field{{"user_id", "string"}, {"balance", "int"}, {"deposit", "int"}, {"withdrawal", "int"}},
 		`{
 						"type": "record",
 						"name": "user_balance_updates",
@@ -80,7 +80,7 @@ func TestSchemasRedisWriter_test(t *testing.T) {
 							]
 					}`)
 
-	sc1 := domain.CreateSchema("user_login", 1, 1, []string{"user_id", "balance", "time"},
+	sc1 := domain.CreateSchema("user_login", 1, 1, []domain.Field{{"user_id", "string"}, {"balance", "int"}, {"time", "string"}},
 		`{
 					"type": "record",
 					"name": "user_login",
@@ -102,7 +102,7 @@ func TestSchemasRedisWriter_test(t *testing.T) {
 
 	t.Run("Add a schema", func(t *testing.T) {
 		schema := sc0
-		schemaKey, err := schemasRedisWriter.SaveSchema(*schema, ctx)
+		schemaKey, err := schemasRedisWriter.SaveSchema(ctx, *schema)
 		assert.NoError(t, err)
 		assert.Equal(t, schema.Key(), schemaKey)
 		keys, err := redisClient.Keys(ctx, "field.*").Result()
@@ -127,16 +127,16 @@ func TestSchemasRedisWriter_test(t *testing.T) {
 
 	t.Run("Add schema twice", func(t *testing.T) {
 		schema := sc0
-		_, err := schemasRedisWriter.SaveSchema(*schema, ctx)
+		_, err := schemasRedisWriter.SaveSchema(ctx, *schema)
 		assert.NoError(t, err)
-		_, err = schemasRedisWriter.SaveSchema(*schema, ctx)
+		_, err = schemasRedisWriter.SaveSchema(ctx, *schema)
 		msg := fmt.Sprintf("schema %s already exists in redis", sc0.Key())
 		assert.Equal(t, err.Error(), msg)
 		cleanupRedis([]domain.Schema{*sc0})
 	})
 
 	t.Run("Add two different schemas", func(t *testing.T) {
-		schema0key, err := schemasRedisWriter.SaveSchema(*sc0, ctx)
+		schema0key, err := schemasRedisWriter.SaveSchema(ctx, *sc0)
 		assert.NoError(t, err)
 		assert.Equal(t, sc0.Key(), schema0key)
 		keys0, err := redisClient.Keys(ctx, "field.*").Result()
@@ -147,7 +147,7 @@ func TestSchemasRedisWriter_test(t *testing.T) {
 		schema0Exists := redisClient.Exists(ctx, "schema.user_balance_updates.1").Val()
 		assert.Equal(t, 1, int(schema0Exists))
 
-		schema1key, err := schemasRedisWriter.SaveSchema(*sc1, ctx)
+		schema1key, err := schemasRedisWriter.SaveSchema(ctx, *sc1)
 		assert.NoError(t, err)
 		assert.Equal(t, sc1.Key(), schema1key)
 		keys1, err := redisClient.Keys(ctx, "field.*").Result()
@@ -182,9 +182,9 @@ func TestSchemasRedisWriter_test(t *testing.T) {
 	})
 
 	t.Run("Delete schema", func(t *testing.T) {
-		_, err := schemasRedisWriter.SaveSchema(*sc0, ctx)
+		_, err := schemasRedisWriter.SaveSchema(ctx, *sc0)
 		assert.NoError(t, err)
-		_, err = schemasRedisWriter.SaveSchema(*sc1, ctx)
+		_, err = schemasRedisWriter.SaveSchema(ctx, *sc1)
 		assert.NoError(t, err)
 
 		keysBefore, err := redisClient.Keys(ctx, "field.*").Result()
@@ -192,7 +192,7 @@ func TestSchemasRedisWriter_test(t *testing.T) {
 		t.Logf("redis keys before deletion: %v", keysBefore)
 		assert.Equal(t, 5, len(keysBefore))
 
-		schemaKey, err := schemasRedisWriter.DeleteSchema(sc0.Subject(), sc0.Version(), ctx)
+		schemaKey, err := schemasRedisWriter.DeleteSchema(ctx, sc0.Subject(), sc0.Version())
 		assert.NoError(t, err)
 		assert.Equal(t, sc0.Key(), schemaKey)
 

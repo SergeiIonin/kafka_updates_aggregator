@@ -23,12 +23,12 @@ func NewSchemasRedisReader(redisAddr string, fieldPrefix string, schemaPrefix st
 	return &SchemasRedisReader{redis: redisClient, fieldPrefix: fieldPrefix, schemaPrefix: schemaPrefix}
 }
 
-func (srr *SchemasRedisReader) GetSchemasForField(field string, ctx context.Context) ([]domain.Schema, error) {
-	fieldRedisKey := fmt.Sprintf("%s%s", srr.fieldPrefix, field)
+func (srr *SchemasRedisReader) GetSchemasForKey(ctx context.Context, key string) ([]domain.Schema, error) {
+	fieldRedisKey := fmt.Sprintf("%s%s", srr.fieldPrefix, key)
 
 	mapping, err := srr.redis.HGetAll(ctx, fieldRedisKey).Result()
 	if err != nil {
-		log.Printf("Error getting schemas for field %s: %s", fieldRedisKey, err)
+		log.Printf("Error getting schemas for key %s: %s", fieldRedisKey, err)
 		return nil, err
 	}
 
