@@ -19,7 +19,7 @@ func NewKafkaMerger(brokers []string, topics []string, groupId string, mergedSou
 	return &KafkaMerger{Brokers: brokers, Topics: topics, GroupId: groupId, MergedSourceTopic: mergedSourceTopic}
 }
 
-func createReader(brokers []string, topic string, groupId string) *kafka.Reader {
+func createTopicReader(brokers []string, topic string, groupId string) *kafka.Reader {
 	config := kafka.ReaderConfig{
 		Brokers:     brokers,
 		Topic:       topic,
@@ -31,7 +31,7 @@ func createReader(brokers []string, topic string, groupId string) *kafka.Reader 
 	return kafka.NewReader(config)
 }
 
-func read(ctx context.Context, reader *kafka.Reader, ch chan<- kafka.Message) {
+func readTopic(ctx context.Context, reader *kafka.Reader, ch chan<- kafka.Message) {
 	defer func() {
 		err := reader.Close()
 		if err != nil {
@@ -44,10 +44,10 @@ func read(ctx context.Context, reader *kafka.Reader, ch chan<- kafka.Message) {
 		if err != nil {
 			if domain.ContextOrDeadlineExceeded(err) {
 				log.Printf("[KafkaMerger] Reader is canceled")
-				//close(ch) // todo how to close the channel properly?
-				return
 			}
-			log.Printf("[KafkaMerger] failed to read message: %v", err) // fixme
+			close(ch)
+			return
+			log.Printf("[KafkaMerger] failed to read message: %v", err)
 		}
 		log.Printf("[KafkaMerger] message at topic/partition/offset %v/%v/%v: %s = %s\n",
 			m.Topic, m.Partition, m.Offset, string(m.Key), string(m.Value))
@@ -60,12 +60,6 @@ func read(ctx context.Context, reader *kafka.Reader, ch chan<- kafka.Message) {
 	}
 }
 
-/*func int64ToBytes(n int64) []byte {
-	buf := make([]byte, 8)
-	binary.BigEndian.PutUint64(buf, uint64(n))
-	return buf
-}*/
-
 func writeToMergedChan(ctx context.Context, chansMerger ChannelsMerger, output chan<- kafka.Message, inputs []chan kafka.Message) {
 	if err := chansMerger.Merge(ctx, output, inputs); err != nil {
 		if domain.ContextOrDeadlineExceeded(err) {
@@ -75,14 +69,38 @@ func writeToMergedChan(ctx context.Context, chansMerger ChannelsMerger, output c
 	}
 }
 
-func writeToMergedTopic(ctx context.Context, brokers []string, topic string, ch <-chan kafka.Message) {
+func (merger *KafkaMerger) readTopics(ctx context.Context) []chan kafka.Message {
+	readers := make([]*kafka.Reader, len(merger.Topics))
+	for i, topic := range merger.Topics {
+		readers[i] = createTopicReader(merger.Brokers, topic, fmt.Sprintf("%s_%d", merger.GroupId, i))
+	}
+
+	inputChans := make([]chan kafka.Message, 0, len(merger.Topics))
+	for _, _ = range merger.Topics {
+		inputChans = append(inputChans, make(chan kafka.Message))
+	}
+
+	for i := range merger.Topics {
+		go readTopic(ctx, readers[i], inputChans[i])
+	}
+
+	return inputChans
+}
+
+func (merger *KafkaMerger) writeToMergedTopic(ctx context.Context,
+	outputChan chan kafka.Message, inputChans []chan kafka.Message) {
+
+	chansMerger := ChannelsMerger{}
+
+	go writeToMergedChan(ctx, chansMerger, outputChan, inputChans)
+
 	writer := &kafka.Writer{
-		Addr:     kafka.TCP(brokers...),
-		Topic:    topic,
+		Addr:     kafka.TCP(merger.Brokers[0]),
+		Topic:    merger.MergedSourceTopic,
 		Balancer: &kafka.LeastBytes{},
 	}
 
-	for msg := range ch {
+	for msg := range outputChan {
 		err := writer.WriteMessages(ctx, msg)
 		if err != nil {
 			log.Fatalf("[KafkaMerger] failed to write message to merged topic: %v", err)
@@ -92,25 +110,10 @@ func writeToMergedTopic(ctx context.Context, brokers []string, topic string, ch 
 
 func (merger *KafkaMerger) Merge(ctx context.Context) {
 	log.Println("[KafkaMerger] started")
-	chansMerger := ChannelsMerger{}
 
-	readers := make([]*kafka.Reader, len(merger.Topics))
-	for i, topic := range merger.Topics {
-		readers[i] = createReader(merger.Brokers, topic, fmt.Sprintf("%s_%d", merger.GroupId, i))
-	}
+	inputChans := merger.readTopics(ctx)
 
-	inputChans := make([]chan kafka.Message, 0, len(merger.Topics))
-	for _, _ = range merger.Topics {
-		inputChans = append(inputChans, make(chan kafka.Message))
-	}
 	outputChan := make(chan kafka.Message)
 
-	for i := range merger.Topics {
-		go read(ctx, readers[i], inputChans[i])
-	}
-
-	go writeToMergedChan(ctx, chansMerger, outputChan, inputChans)
-
-	writeToMergedTopic(ctx, merger.Brokers, merger.MergedSourceTopic, outputChan)
-
+	merger.writeToMergedTopic(ctx, outputChan, inputChans)
 }

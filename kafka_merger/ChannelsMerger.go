@@ -41,8 +41,6 @@ func (m *ChannelsMerger) Merge(ctx context.Context, output chan<- kafka.Message,
 		close(output)
 	}()
 
-	log.Printf("BEFORE Writing to output, len(pq) = %d", len(pq)) // fixme rm
-	//var earliest kafka.Message
 	for {
 		if len(pq) == 0 {
 			continue
