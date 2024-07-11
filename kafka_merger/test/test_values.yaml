@@ -1,6 +1,0 @@
-SourceTopics:
-  - test_1
-  - test_2
-  - test_3
-BrokerAddr: localhost:29092
-MergedSourceTopic: merged_topic
