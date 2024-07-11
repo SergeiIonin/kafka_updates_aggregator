@@ -14,7 +14,7 @@ import (
 	"testing"
 	"time"
 )
-
+// todo consider splitting the package into multiple packages of cohesive files, e.g. testreader, testwriter, testdata etc
 type MessageWithTopic interface {
 	Topic() string
 }

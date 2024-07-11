@@ -1,15 +1,14 @@
-package domain_test
+package domain
 
 import (
 	"encoding/json"
 	"github.com/stretchr/testify/assert"
-	"kafka_updates_aggregator/domain"
 	"testing"
 )
 
-func TestSchema_test(t *testing.T) {
-	sc0 := domain.CreateSchema("user_balance_updates", 1, 1,
-		[]domain.Field{{"user_id", "string"}, {"balance", "int"}, {"deposit", "int"}, {"withdrawal", "int"}},
+func Test_Schema(t *testing.T) {
+	sc0 := CreateSchema("user_balance_updates", 1, 1,
+		[]Field{{"user_id", "string"}, {"balance", "int"}, {"deposit", "int"}, {"withdrawal", "int"}},
 		`{
 						"type": "record",
 						"name": "user_balance_updates",
@@ -27,7 +26,7 @@ func TestSchema_test(t *testing.T) {
 		}
 		t.Logf("Encoded schema: %v", string(encoded))
 
-		var decodedSchema domain.Schema
+		var decodedSchema Schema
 		err = json.Unmarshal(encoded, &decodedSchema)
 		if err != nil {
 			t.Fatalf("Error unmarshalling schema: %v", err)

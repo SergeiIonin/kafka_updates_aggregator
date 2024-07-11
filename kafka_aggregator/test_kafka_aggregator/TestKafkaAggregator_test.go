@@ -8,7 +8,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"kafka_updates_aggregator/domain"
 	"kafka_updates_aggregator/kafka_aggregator"
-	"kafka_updates_aggregator/testutils"
+	"kafka_updates_aggregator/test"
 	"log"
 	"testing"
 )
@@ -30,7 +30,7 @@ func init() {
 		log.Printf("error creating docker client: %s", err.Error())
 		panic(err)
 	}
-	containerId, err = testutils.CreateKafkaWithKRaftContainer(dockerClient)
+	containerId, err = test.CreateKafkaWithKRaftContainer(dockerClient)
 	if err != nil {
 		log.Fatalf("could not create container %v", err)
 	}
@@ -66,7 +66,7 @@ func init() {
 
 func TestKafkaAggregator_test(t *testing.T) {
 	cleanup := func() {
-		testutils.CleanupAndGracefulShutdown(t, dockerClient, containerId)
+		test.CleanupAndGracefulShutdown(t, dockerClient, containerId)
 	}
 	//defer cleanup() // fixme it'd be great to rm containers in case t.Cleanup won't affect them
 	t.Cleanup(cleanup)
@@ -115,7 +115,7 @@ func TestKafkaAggregator_test(t *testing.T) {
 	err = aggregator.WriteAggregate(context.Background(), userId, message)
 	assert.NoError(t, err)
 
-	testReader := testutils.KafkaTestReader{
+	testReader := test.KafkaTestReader{
 		kafka.NewReader(kafka.ReaderConfig{
 			Brokers:  []string{kafkaBroker},
 			Topic:    aggregateTopic,

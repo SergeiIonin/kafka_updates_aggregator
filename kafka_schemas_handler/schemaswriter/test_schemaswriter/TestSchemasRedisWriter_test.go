@@ -9,9 +9,9 @@ import (
 	tc "github.com/testcontainers/testcontainers-go"
 	tcWait "github.com/testcontainers/testcontainers-go/wait"
 	"kafka_updates_aggregator/domain"
-	"kafka_updates_aggregator/infra"
+	"kafka_updates_aggregator/redisprefixes"
 	"kafka_updates_aggregator/kafka_schemas_handler/schemaswriter"
-	"kafka_updates_aggregator/testutils"
+	"kafka_updates_aggregator/test"
 	"log"
 	"slices"
 	"testing"
@@ -24,7 +24,7 @@ var (
 	ctx                context.Context
 	schemasRedisWriter *schemaswriter.SchemasRedisWriter
 	redisClient        *redis.Client
-	redisPrefixes      infra.RedisPrefixes
+	redisPrefixes      redisprefixes.RedisPrefixes
 )
 
 func init() {
@@ -55,14 +55,14 @@ func init() {
 	}
 
 	redisAddr = fmt.Sprintf("%s:%s", host, port.Port())
-	redisPrefixes = *infra.NewRedisPrefixes()
+	redisPrefixes = *redisprefixes.NewRedisPrefixes()
 	schemasRedisWriter = schemaswriter.NewSchemasRedisWriter(redisAddr, redisPrefixes.FieldPrefix, redisPrefixes.SchemaPrefix)
 	redisClient = redis.NewClient(&redis.Options{Addr: redisAddr})
 }
 
 func TestSchemasRedisWriter_test(t *testing.T) {
 	defer func(ctx context.Context, container tc.Container, t *testing.T) {
-		err := testutils.TerminateTestContainer(ctx, container)
+		err := test.TerminateTestContainer(ctx, container)
 		if err != nil {
 			t.Fatalf(err.Error())
 		}

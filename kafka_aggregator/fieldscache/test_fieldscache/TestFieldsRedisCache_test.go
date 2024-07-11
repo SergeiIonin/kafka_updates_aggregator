@@ -7,7 +7,7 @@ import (
 	tc "github.com/testcontainers/testcontainers-go"
 	tcWait "github.com/testcontainers/testcontainers-go/wait"
 	"kafka_updates_aggregator/kafka_aggregator/fieldscache"
-	"kafka_updates_aggregator/testutils"
+	"kafka_updates_aggregator/test"
 	"log"
 	"testing"
 	"time"
@@ -51,7 +51,7 @@ func init() {
 
 func TestFieldsRedisCache_test(t *testing.T) {
 	defer func(ctx context.Context, container tc.Container, t *testing.T) {
-		err := testutils.TerminateTestContainer(ctx, container)
+		err := test.TerminateTestContainer(ctx, container)
 		if err != nil {
 			t.Fatalf(err.Error())
 		}

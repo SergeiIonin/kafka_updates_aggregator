@@ -6,7 +6,7 @@ import (
 	"github.com/docker/docker/client"
 	"github.com/segmentio/kafka-go"
 	"kafka_updates_aggregator/kafka_schemas_handler/handler"
-	"kafka_updates_aggregator/testutils"
+	"kafka_updates_aggregator/test"
 	"log"
 	"sync"
 	"testing"
@@ -30,7 +30,7 @@ func init() {
 		log.Printf("error creating docker client: %s", err.Error())
 		panic(err)
 	}
-	containerId, err = testutils.CreateKafkaWithKRaftContainer(dockerClient)
+	containerId, err = test.CreateKafkaWithKRaftContainer(dockerClient)
 	if err != nil {
 		log.Fatalf("could not create container %v", err)
 	}
@@ -70,7 +70,7 @@ func init() {
 
 func TestKafkaAggregator_test(t *testing.T) {
 	cleanup := func() {
-		testutils.CleanupAndGracefulShutdown(t, dockerClient, containerId)
+		test.CleanupAndGracefulShutdown(t, dockerClient, containerId)
 	}
 	//defer cleanup() // fixme it'd be great to rm containers in case t.Cleanup won't affect them
 	t.Cleanup(cleanup)

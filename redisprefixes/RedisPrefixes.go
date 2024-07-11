@@ -1,4 +1,4 @@
-package infra
+package redisprefixes
 
 type RedisPrefixes struct {
 	FieldPrefix  string
