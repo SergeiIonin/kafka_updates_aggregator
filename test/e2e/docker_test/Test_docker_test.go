@@ -6,7 +6,7 @@ import (
 	"github.com/docker/docker/client"
 	"github.com/segmentio/kafka-go"
 	"github.com/stretchr/testify/assert"
-	"kafka_updates_aggregator/testutils"
+	"kafka_updates_aggregator/test"
 	"log"
 	"testing"
 	"time"
@@ -41,7 +41,7 @@ func initDocker() {
 
 func initKafka() (string, error) {
 	var err error
-	kafkaContainerId, err = testutils.CreateKafkaWithKRaftContainer(dockerClient)
+	kafkaContainerId, err = test.CreateKafkaWithKRaftContainer(dockerClient)
 	if err != nil {
 		log.Fatalf("could not create kafka container %v", err)
 		return "", err
@@ -80,7 +80,7 @@ func initKafka() (string, error) {
 
 func initRedis() (string, error) {
 	var err error
-	redisContainerId, err = testutils.CreateRedisContainer(dockerClient)
+	redisContainerId, err = test.CreateRedisContainer(dockerClient)
 	if err != nil {
 		log.Fatalf("could not create redis container %v", err)
 		return "", err
@@ -128,10 +128,10 @@ func Test_docker_test(t *testing.T) {
 	assert.Equal(t, 1, 1)
 
 	defer func() {
-		if err := testutils.TerminateContainer(dockerClient, kafkaContainerId); err != nil {
+		if err := test.TerminateContainer(dockerClient, kafkaContainerId); err != nil {
 			t.Fatalf(err.Error())
 		}
-		if err := testutils.TerminateContainer(dockerClient, redisContainerId); err != nil {
+		if err := test.TerminateContainer(dockerClient, redisContainerId); err != nil {
 			t.Fatalf(err.Error())
 		}
 	}()

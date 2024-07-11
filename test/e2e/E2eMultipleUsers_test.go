@@ -1,4 +1,4 @@
-package multipleusers
+package e2e
 
 import (
 	"context"
@@ -8,15 +8,15 @@ import (
 	"github.com/redis/go-redis/v9"
 	"github.com/segmentio/kafka-go"
 	"github.com/stretchr/testify/assert"
-	"kafka_updates_aggregator/e2e/e2eutils"
-	"kafka_updates_aggregator/infra"
+	"kafka_updates_aggregator/test/e2e/e2eutils"
+	"kafka_updates_aggregator/redisprefixes"
 	"kafka_updates_aggregator/kafka_aggregator"
 	"kafka_updates_aggregator/kafka_aggregator/fieldscache"
 	"kafka_updates_aggregator/kafka_aggregator/schemasreader"
 	"kafka_updates_aggregator/kafka_merger"
 	"kafka_updates_aggregator/kafka_schemas_handler/handler"
 	"kafka_updates_aggregator/kafka_schemas_handler/schemaswriter"
-	"kafka_updates_aggregator/testutils"
+	"kafka_updates_aggregator/test"
 	"log"
 	"slices"
 	"testing"
@@ -44,7 +44,7 @@ var (
 	schemasRedisReader *schemasreader.SchemasRedisReader
 	schemasRedisWriter *schemaswriter.SchemasRedisWriter
 	redisClient        *redis.Client
-	redisPrefixes      infra.RedisPrefixes
+	redisPrefixes      redisprefixes.RedisPrefixes
 	fieldsRedisCache   *fieldscache.FieldsRedisCache
 
 	dockerClient *client.Client
@@ -62,7 +62,7 @@ func initDocker() {
 
 func initKafka() (string, error) {
 	var err error
-	kafkaContainerId, err = testutils.CreateKafkaWithKRaftContainer(dockerClient)
+	kafkaContainerId, err = test.CreateKafkaWithKRaftContainer(dockerClient)
 	if err != nil {
 		log.Fatalf("could not create kafka container %v", err)
 		return "", err
@@ -101,7 +101,7 @@ func initKafka() (string, error) {
 
 func initRedis() (string, error) {
 	var err error
-	redisContainerId, err = testutils.CreateRedisContainer(dockerClient)
+	redisContainerId, err = test.CreateRedisContainer(dockerClient)
 	if err != nil {
 		log.Fatalf("could not create redis container %v", err)
 		return "", err
@@ -144,7 +144,7 @@ func init() {
 		break
 	}
 
-	redisPrefixes = *infra.NewRedisPrefixes()
+	redisPrefixes = *redisprefixes.NewRedisPrefixes()
 	schemasRedisReader = schemasreader.NewSchemasRedisReader(redisAddr, redisPrefixes.FieldPrefix, redisPrefixes.SchemaPrefix)
 	schemasRedisWriter = schemaswriter.NewSchemasRedisWriter(redisAddr, redisPrefixes.FieldPrefix, redisPrefixes.SchemaPrefix)
 	fieldsRedisCache = fieldscache.NewFieldsRedisCache(redisAddr)
@@ -152,10 +152,10 @@ func init() {
 
 func Test_e2eMultipleUsers_test(t *testing.T) {
 	defer func() {
-		if err := testutils.TerminateContainer(dockerClient, kafkaContainerId); err != nil {
+		if err := test.TerminateContainer(dockerClient, kafkaContainerId); err != nil {
 			t.Fatalf(err.Error())
 		}
-		if err := testutils.TerminateContainer(dockerClient, redisContainerId); err != nil {
+		if err := test.TerminateContainer(dockerClient, redisContainerId); err != nil {
 			t.Fatalf(err.Error())
 		}
 	}()

@@ -1,12 +1,11 @@
-package test
+package kafka_merger
 
 import (
 	"context"
 	"fmt"
 	"github.com/docker/docker/client"
 	"github.com/segmentio/kafka-go"
-	merger "kafka_updates_aggregator/kafka_merger"
-	testutils "kafka_updates_aggregator/testutils"
+	test "kafka_updates_aggregator/test"
 	"log"
 	"slices"
 	"strconv"
@@ -34,7 +33,7 @@ func init() {
 		log.Printf("error creating docker client: %s", err.Error())
 		panic(err)
 	}
-	containerId, err = testutils.CreateKafkaWithKRaftContainer(dockerClient)
+	containerId, err = test.CreateKafkaWithKRaftContainer(dockerClient)
 	if err != nil {
 		log.Fatalf("could not create container %v", err)
 	}
@@ -70,27 +69,27 @@ func init() {
 // todo add test_containers support and ensure test_kafka_aggregator topics exist and have messages before the test_kafka_aggregator runs
 func Test_KafkaMerger_Concurrent_test(t *testing.T) {
 	cleanup := func() {
-		testutils.CleanupAndGracefulShutdown(t, dockerClient, containerId)
+		test.CleanupAndGracefulShutdown(t, dockerClient, containerId)
 	}
 
 	//defer cleanup() // fixme it'd be great to rm containers in case t.Cleanup won't affect them
 	t.Cleanup(cleanup)
 
-	merger := merger.KafkaMerger{
+	merger := KafkaMerger{
 		Brokers:           []string{kafkaBroker},
 		Topics:            topics,
 		GroupId:           fmt.Sprintf("new_%s", time.Now().String()),
 		MergedSourceTopic: mergedSourceTopic,
 	}
 
-	testWriter := testutils.KafkaTestWriter{
+	testWriter := test.KafkaTestWriter{
 		Writer: &kafka.Writer{
 			Addr:     kafkaAddr,
 			Balancer: &kafka.LeastBytes{},
 		},
 	}
 
-	testReader := testutils.KafkaTestReader{
+	testReader := test.KafkaTestReader{
 		kafka.NewReader(kafka.ReaderConfig{
 			Brokers:  []string{kafkaBroker},
 			Topic:    mergedSourceTopic,
@@ -121,7 +120,7 @@ func Test_KafkaMerger_Concurrent_test(t *testing.T) {
 		t.Fatalf("Expected %d messages, got %d", numMsgsTotal, count)
 	}
 
-	offsetsPerTopicMap := testutils.GetOffsetsPerTopic(messages)
+	offsetsPerTopicMap := test.GetOffsetsPerTopic(messages)
 	offsetsPerTopic := make([]int64, msgsPerTopic)
 	sorted := false
 	for _, topic := range topics {
@@ -149,7 +148,7 @@ func getTimestampsFromHeaders(messages []kafka.Message) []int64 {
 }
 
 // In this case messages from different topics can interleave w/ each other in time
-func writeTestMessagesWithInterleaving(writer *testutils.KafkaTestWriter) {
+func writeTestMessagesWithInterleaving(writer *test.KafkaTestWriter) {
 	log.Printf("Writing messages with interleaving")
 	wg := &sync.WaitGroup{}
 	ctx := context.Background()
