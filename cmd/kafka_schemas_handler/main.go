@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/segmentio/kafka-go"
-	"kafka_updates_aggregator/kafka_schemas_handler/handler"
+	schemashandler "kafka_updates_aggregator/kafka_schemas_handler"
 )
 
 type SchemasDAOImpl struct {
@@ -35,16 +35,8 @@ func (dao *SchemasDAOImpl) DeleteSchema(subject string, version int) (string, er
 
 func main() {
 	kafkaBrokers := []string{"localhost:19092"}
-	//kafkaAddr := kafka.TCP(kafkaBrokers[0])
-	reader := kafka.NewReader(kafka.ReaderConfig{
-		Brokers:  kafkaBrokers,
-		Topic:    "_schemas",
-		GroupID:  "schemas_handler",
-		MinBytes: 10e3, // 10KB
-		MaxBytes: 10e6, // 10MB
-	})
 	schemasDAO := NewSchemasDAOImpl()
-	KafkaSchemasHandler := handler.NewKafkaSchemasHandler(reader, schemasDAO)
+	KafkaSchemasHandler := schemashandler.NewKafkaSchemasHandler(kafkaBrokers[0], schemasDAO)
 	ctx := context.Background()
 	KafkaSchemasHandler.Run(ctx)
 }

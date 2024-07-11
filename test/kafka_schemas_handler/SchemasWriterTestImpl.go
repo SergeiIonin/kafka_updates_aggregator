@@ -1,4 +1,4 @@
-package test_kafka_schemas_handler
+package kafka_schemas_handler
 
 import (
 	"context"
@@ -24,7 +24,7 @@ func NewSchemasWriterTestImpl() *SchemasWriterTestImpl {
 func (sw *SchemasWriterTestImpl) SaveSchema(ctx context.Context, schema domain.Schema) (string, error) {
 	log.Printf("saving schema %v", schema)
 	for _, field := range schema.Fields() {
-		schemas, ok := sw.Underlying[field]
+		schemas, ok := sw.Underlying[field.Name]
 		contains := false
 		if ok {
 			for _, s := range schemas {
@@ -35,12 +35,12 @@ func (sw *SchemasWriterTestImpl) SaveSchema(ctx context.Context, schema domain.S
 			}
 		} else {
 			sw.mut.Lock()
-			sw.Underlying[field] = []domain.Schema{schema}
+			sw.Underlying[field.Name] = []domain.Schema{schema}
 			sw.mut.Unlock()
 		}
 		if !contains {
 			sw.mut.Lock()
-			sw.Underlying[field] = append(schemas, schema)
+			sw.Underlying[field.Name] = append(schemas, schema)
 			sw.mut.Unlock()
 		}
 	}

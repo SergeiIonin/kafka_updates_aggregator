@@ -1,4 +1,4 @@
-package test_schemaswriter
+package schemaswriter
 
 import (
 	"context"
@@ -10,7 +10,6 @@ import (
 	tcWait "github.com/testcontainers/testcontainers-go/wait"
 	"kafka_updates_aggregator/domain"
 	"kafka_updates_aggregator/redisprefixes"
-	"kafka_updates_aggregator/kafka_schemas_handler/schemaswriter"
 	"kafka_updates_aggregator/test"
 	"log"
 	"slices"
@@ -22,7 +21,7 @@ var (
 	redisAddr          string
 	redisContainer     tc.Container
 	ctx                context.Context
-	schemasRedisWriter *schemaswriter.SchemasRedisWriter
+	schemasRedisWriter *SchemasRedisWriter
 	redisClient        *redis.Client
 	redisPrefixes      redisprefixes.RedisPrefixes
 )
@@ -56,7 +55,7 @@ func init() {
 
 	redisAddr = fmt.Sprintf("%s:%s", host, port.Port())
 	redisPrefixes = *redisprefixes.NewRedisPrefixes()
-	schemasRedisWriter = schemaswriter.NewSchemasRedisWriter(redisAddr, redisPrefixes.FieldPrefix, redisPrefixes.SchemaPrefix)
+	schemasRedisWriter = NewSchemasRedisWriter(redisAddr, redisPrefixes.FieldPrefix, redisPrefixes.SchemaPrefix)
 	redisClient = redis.NewClient(&redis.Options{Addr: redisAddr})
 }
 
