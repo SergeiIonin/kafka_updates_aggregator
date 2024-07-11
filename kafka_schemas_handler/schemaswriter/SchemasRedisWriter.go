@@ -12,15 +12,25 @@ import (
 
 type SchemasRedisWriter struct {
 	redis        *redis.Client
-	fieldPrefix  string // "field."
-	schemaPrefix string // "schema."
+	fieldPrefix  string
+	schemaPrefix string
 }
 
-func NewSchemasRedisWriter(redisAddr string, fieldPrefix string, schemaPrefix string) *SchemasRedisWriter {
+func NewSchemasRedisWriter(redisAddr string) *SchemasRedisWriter {
 	redisClient := redis.NewClient(&redis.Options{
 		Addr: redisAddr,
 	})
+	fieldPrefix := "field."
+	schemaPrefix := "schema."
 	return &SchemasRedisWriter{redis: redisClient, fieldPrefix: fieldPrefix, schemaPrefix: schemaPrefix}
+}
+
+func (srr *SchemasRedisWriter) FieldPrefix() string {
+	return srr.fieldPrefix
+}
+
+func (srr *SchemasRedisWriter) SchemaPrefix() string {
+	return srr.schemaPrefix
 }
 
 func readSchemas(rawSchemas []byte) ([]domain.Schema, error) {

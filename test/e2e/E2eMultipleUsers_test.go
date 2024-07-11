@@ -1,26 +1,25 @@
 package e2e
 
 import (
-	"context"
-	"encoding/json"
-	"fmt"
-	"github.com/docker/docker/client"
-	"github.com/redis/go-redis/v9"
-	"github.com/segmentio/kafka-go"
-	"github.com/stretchr/testify/assert"
-	"kafka_updates_aggregator/test/e2e/e2eutils"
-	"kafka_updates_aggregator/redisprefixes"
-	"kafka_updates_aggregator/kafka_aggregator"
-	"kafka_updates_aggregator/kafka_aggregator/fieldscache"
-	"kafka_updates_aggregator/kafka_aggregator/schemasreader"
-	"kafka_updates_aggregator/kafka_merger"
-	"kafka_updates_aggregator/kafka_schemas_handler/handler"
-	"kafka_updates_aggregator/kafka_schemas_handler/schemaswriter"
-	"kafka_updates_aggregator/test"
-	"log"
-	"slices"
-	"testing"
-	"time"
+    "context"
+    "encoding/json"
+    "fmt"
+    "github.com/docker/docker/client"
+    "github.com/redis/go-redis/v9"
+    "github.com/segmentio/kafka-go"
+    "github.com/stretchr/testify/assert"
+    "kafka_updates_aggregator/kafka_aggregator"
+    "kafka_updates_aggregator/kafka_aggregator/fieldscache"
+    "kafka_updates_aggregator/kafka_aggregator/schemasreader"
+    "kafka_updates_aggregator/kafka_merger"
+    kafkaschemashandler "kafka_updates_aggregator/kafka_schemas_handler"
+    "kafka_updates_aggregator/kafka_schemas_handler/schemaswriter"
+    "kafka_updates_aggregator/test"
+    "kafka_updates_aggregator/test/e2e/e2eutils"
+    "log"
+    "slices"
+    "testing"
+    "time"
 )
 
 var (
@@ -44,11 +43,10 @@ var (
 	schemasRedisReader *schemasreader.SchemasRedisReader
 	schemasRedisWriter *schemaswriter.SchemasRedisWriter
 	redisClient        *redis.Client
-	redisPrefixes      redisprefixes.RedisPrefixes
 	fieldsRedisCache   *fieldscache.FieldsRedisCache
 
 	dockerClient *client.Client
-	startTimeout time.Duration = 10 * time.Second
+	startTimeout = 10 * time.Second
 )
 
 func initDocker() {
@@ -87,9 +85,8 @@ func initKafka() (string, error) {
 	}
 
 	if _, err = kafkaClient.CreateTopics(context.Background(), &kafka.CreateTopicsRequest{
-		kafkaAddr,
-		topicConfigs,
-		false,
+		Addr:   kafkaAddr,
+		Topics: topicConfigs,
 	},
 	); err != nil {
 		log.Fatalf("could not create topics %v", err)
@@ -144,9 +141,8 @@ func init() {
 		break
 	}
 
-	redisPrefixes = *redisprefixes.NewRedisPrefixes()
-	schemasRedisReader = schemasreader.NewSchemasRedisReader(redisAddr, redisPrefixes.FieldPrefix, redisPrefixes.SchemaPrefix)
-	schemasRedisWriter = schemaswriter.NewSchemasRedisWriter(redisAddr, redisPrefixes.FieldPrefix, redisPrefixes.SchemaPrefix)
+	schemasRedisWriter = schemaswriter.NewSchemasRedisWriter(redisAddr)
+	schemasRedisReader = schemasreader.NewSchemasRedisReader(redisAddr)
 	fieldsRedisCache = fieldscache.NewFieldsRedisCache(redisAddr)
 }
 
@@ -160,7 +156,7 @@ func Test_e2eMultipleUsers_test(t *testing.T) {
 		}
 	}()
 
-	schemasHandler := handler.NewKafkaSchemasHandler(kafkaBroker, schemasRedisWriter)
+	schemasHandler := kafkaschemashandler.NewKafkaSchemasHandler(kafkaBroker, schemasRedisWriter)
 
 	kafkaMerger := kafka_merger.NewKafkaMerger([]string{kafkaBroker}, sourceTopics, "e2e-group", mergedSourcesTopic)
 

@@ -16,11 +16,21 @@ type SchemasRedisReader struct {
 	schemaPrefix string // "schema."
 }
 
-func NewSchemasRedisReader(redisAddr string, fieldPrefix string, schemaPrefix string) *SchemasRedisReader {
+func NewSchemasRedisReader(redisAddr string) *SchemasRedisReader {
 	redisClient := redis.NewClient(&redis.Options{
 		Addr: redisAddr,
 	})
+	fieldPrefix := "field."
+	schemaPrefix := "schema."
 	return &SchemasRedisReader{redis: redisClient, fieldPrefix: fieldPrefix, schemaPrefix: schemaPrefix}
+}
+
+func (srr *SchemasRedisReader) FieldPrefix() string {
+	return srr.fieldPrefix
+}
+
+func (srr *SchemasRedisReader) SchemaPrefix() string {
+	return srr.schemaPrefix
 }
 
 func (srr *SchemasRedisReader) GetSchemasForKey(ctx context.Context, key string) ([]domain.Schema, error) {

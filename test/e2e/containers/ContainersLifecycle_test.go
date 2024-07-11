@@ -1,4 +1,4 @@
-package singleuser
+package containers
 
 import (
 	"context"
@@ -123,7 +123,7 @@ func init() {
 	}
 }
 
-func Test_docker_test(t *testing.T) {
+func Test_ContainersLifecycle_test(t *testing.T) {
 
 	assert.Equal(t, 1, 1)
 

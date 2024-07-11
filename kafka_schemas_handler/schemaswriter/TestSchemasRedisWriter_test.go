@@ -9,7 +9,6 @@ import (
 	tc "github.com/testcontainers/testcontainers-go"
 	tcWait "github.com/testcontainers/testcontainers-go/wait"
 	"kafka_updates_aggregator/domain"
-	"kafka_updates_aggregator/redisprefixes"
 	"kafka_updates_aggregator/test"
 	"log"
 	"slices"
@@ -23,7 +22,6 @@ var (
 	ctx                context.Context
 	schemasRedisWriter *SchemasRedisWriter
 	redisClient        *redis.Client
-	redisPrefixes      redisprefixes.RedisPrefixes
 )
 
 func init() {
@@ -54,8 +52,7 @@ func init() {
 	}
 
 	redisAddr = fmt.Sprintf("%s:%s", host, port.Port())
-	redisPrefixes = *redisprefixes.NewRedisPrefixes()
-	schemasRedisWriter = NewSchemasRedisWriter(redisAddr, redisPrefixes.FieldPrefix, redisPrefixes.SchemaPrefix)
+	schemasRedisWriter = NewSchemasRedisWriter(redisAddr)
 	redisClient = redis.NewClient(&redis.Options{Addr: redisAddr})
 }
 
@@ -92,9 +89,9 @@ func TestSchemasRedisWriter_test(t *testing.T) {
 
 	cleanupRedis := func(schemas []domain.Schema) {
 		for _, schema := range schemas {
-			redisClient.Del(ctx, fmt.Sprintf("%s%s", redisPrefixes.SchemaPrefix, schema.Key()))
+			redisClient.Del(ctx, fmt.Sprintf("%s%s", schemasRedisWriter.SchemaPrefix(), schema.Key()))
 			for _, field := range schema.Fields() {
-				redisClient.HDel(ctx, fmt.Sprintf("%s%s", redisPrefixes.FieldPrefix, field))
+				redisClient.HDel(ctx, fmt.Sprintf("%s%s", schemasRedisWriter.FieldPrefix(), field))
 			}
 		}
 	}
