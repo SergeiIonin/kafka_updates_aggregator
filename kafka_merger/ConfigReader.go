@@ -5,7 +5,8 @@ import (
 	"gopkg.in/yaml.v3"
 	"html/template"
 	"io"
-	"os"
+    "log"
+    "os"
 )
 
 type ConfigReader struct {
@@ -31,7 +32,13 @@ func valuesFromYamlFile(dataFile string) (map[string]interface{}, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, "opening data file")
 	}
-	defer data.Close()
+	defer func(data *os.File) {
+        err := data.Close()
+        if err != nil {
+            log.Printf("Error closing config for kafka_merger: %v", err)
+        }
+    }(data)
+
 	s, err := ioReadAll(data)
 	if err != nil {
 		return nil, errors.Wrap(err, "reading data file")

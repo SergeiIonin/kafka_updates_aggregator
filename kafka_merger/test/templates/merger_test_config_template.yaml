@@ -1,7 +1,0 @@
-kafka_merger:
-  source_topics:
-{{range .SourceTopics }}
-    - {{ . }}
-{{end }}
-  hostname: {{ .BrokerAddr }}
-  merged_source_topic: {{ .MergedSourceTopic }}
