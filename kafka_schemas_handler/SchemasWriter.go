@@ -1,4 +1,4 @@
-package handler
+package kafka_schemas_handler
 
 import (
 	"context"

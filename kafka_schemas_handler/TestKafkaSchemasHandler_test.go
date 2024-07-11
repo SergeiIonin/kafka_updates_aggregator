@@ -1,12 +1,12 @@
-package test_kafka_schemas_handler
+package kafka_schemas_handler
 
 import (
 	"context"
 	"fmt"
 	"github.com/docker/docker/client"
 	"github.com/segmentio/kafka-go"
-	"kafka_updates_aggregator/kafka_schemas_handler/handler"
 	"kafka_updates_aggregator/test"
+	testkafkaschemashandler "kafka_updates_aggregator/test/kafka_schemas_handler"
 	"log"
 	"sync"
 	"testing"
@@ -75,14 +75,14 @@ func TestKafkaAggregator_test(t *testing.T) {
 	//defer cleanup() // fixme it'd be great to rm containers in case t.Cleanup won't affect them
 	t.Cleanup(cleanup)
 
-	schemasWriter := NewSchemasWriterTestImpl()
+	schemasWriter := testkafkaschemashandler.NewSchemasWriterTestImpl()
 
 	t.Run("create schema and delete schema", func(t *testing.T) {
 		wg := sync.WaitGroup{}
 		subject := "foo"
 		version := 1
 		schemaID := fmt.Sprintf("%s-%d", subject, version)
-		kafkaSchemasHandler := handler.NewKafkaSchemasHandler(kafkaBroker, schemasWriter)
+		kafkaSchemasHandler := NewKafkaSchemasHandler(kafkaBroker, schemasWriter)
 		ctx, cancel := context.WithCancel(context.Background())
 
 		go kafkaSchemasHandler.Run(ctx)
