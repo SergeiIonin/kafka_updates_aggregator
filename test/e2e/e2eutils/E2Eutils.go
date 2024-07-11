@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"github.com/redis/go-redis/v9"
 	"github.com/segmentio/kafka-go"
-	"kafka_updates_aggregator/kafka_schemas_handler/handler"
+	kafkaschemashandler "kafka_updates_aggregator/kafka_schemas_handler"
 	"log"
 	"net"
 	"sync"
@@ -131,7 +131,7 @@ func AreSchemasReady(ctx context.Context, cancel context.CancelFunc, redisClient
 	}
 }
 
-func ProcessSchemas(t *testing.T, schemasHandler *handler.KafkaSchemasHandler, redisClient *redis.Client, aggregatedTopics []string) {
+func ProcessSchemas(t *testing.T, schemasHandler *kafkaschemashandler.KafkaSchemasHandler, redisClient *redis.Client, aggregatedTopics []string) {
 	ctxSchema, cancel := context.WithCancel(context.Background())
 
 	go schemasHandler.Run(ctxSchema)

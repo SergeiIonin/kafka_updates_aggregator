@@ -9,7 +9,6 @@ import (
 	tc "github.com/testcontainers/testcontainers-go"
 	tcWait "github.com/testcontainers/testcontainers-go/wait"
 	"kafka_updates_aggregator/domain"
-	"kafka_updates_aggregator/redisprefixes"
 	"kafka_updates_aggregator/test"
 	"log"
 	"slices"
@@ -23,7 +22,6 @@ var (
 	ctx                context.Context
 	schemasRedisReader *SchemasRedisReader
 	redisClient        *redis.Client
-	redisPrefixes      redisprefixes.RedisPrefixes
 )
 
 func init() {
@@ -54,8 +52,7 @@ func init() {
 	}
 
 	redisAddr = fmt.Sprintf("%s:%s", host, port.Port())
-	redisPrefixes = *redisprefixes.NewRedisPrefixes()
-	schemasRedisReader = NewSchemasRedisReader(redisAddr, redisPrefixes.FieldPrefix, redisPrefixes.SchemaPrefix)
+	schemasRedisReader = NewSchemasRedisReader(redisAddr)
 	redisClient = redis.NewClient(&redis.Options{Addr: redisAddr})
 }
 
@@ -92,9 +89,9 @@ func TestSchemasRedisReader_test(t *testing.T) {
 
 	cleanupRedis := func(schemas []domain.Schema) {
 		for _, schema := range schemas {
-			redisClient.Del(ctx, fmt.Sprintf("%s%s", redisPrefixes.SchemaPrefix, schema.Key()))
+			redisClient.Del(ctx, fmt.Sprintf("%s%s", schemasRedisReader.SchemaPrefix(), schema.Key()))
 			for _, field := range schema.Fields() {
-				redisClient.HDel(ctx, fmt.Sprintf("%s%s", redisPrefixes.FieldPrefix, field))
+				redisClient.HDel(ctx, fmt.Sprintf("%s%s", schemasRedisReader.FieldPrefix(), field))
 			}
 		}
 	}
@@ -111,7 +108,7 @@ func TestSchemasRedisReader_test(t *testing.T) {
 
 	t.Run("Fetch one schema", func(t *testing.T) {
 		field := "user_id"
-		fieldRedisKey := fmt.Sprintf("%s%s", redisPrefixes.FieldPrefix, field)
+		fieldRedisKey := fmt.Sprintf("%s%s", schemasRedisReader.FieldPrefix(), field)
 		schemaRaw, _ := json.Marshal(sc0)
 
 		err := redisClient.HSet(ctx, fieldRedisKey, sc0.Key(), string(schemaRaw)).Err()
@@ -131,7 +128,7 @@ func TestSchemasRedisReader_test(t *testing.T) {
 
 	t.Run("Fetch multiple schemas", func(t *testing.T) {
 		field := "user_id"
-		fieldRedisKey := fmt.Sprintf("%s%s", redisPrefixes.FieldPrefix, field)
+		fieldRedisKey := fmt.Sprintf("%s%s", schemasRedisReader.FieldPrefix(), field)
 
 		schema0Raw, _ := json.Marshal(sc0)
 		err := redisClient.HSet(ctx, fieldRedisKey, sc0.Key(), string(schema0Raw)).Err()
