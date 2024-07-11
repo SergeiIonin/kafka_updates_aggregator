@@ -1,16 +1,16 @@
-package test_kafka_aggregator
+package kafka_aggregator
 
 import (
-	"context"
-	"encoding/json"
-	"github.com/docker/docker/client"
-	"github.com/segmentio/kafka-go"
-	"github.com/stretchr/testify/assert"
-	"kafka_updates_aggregator/domain"
-	"kafka_updates_aggregator/kafka_aggregator"
-	"kafka_updates_aggregator/test"
-	"log"
-	"testing"
+    "context"
+    "encoding/json"
+    "github.com/docker/docker/client"
+    "github.com/segmentio/kafka-go"
+    "github.com/stretchr/testify/assert"
+    "kafka_updates_aggregator/domain"
+    "kafka_updates_aggregator/test"
+    testaggregator "kafka_updates_aggregator/test/kafka_aggregator"
+    "log"
+    "testing"
 )
 
 var (
@@ -71,12 +71,12 @@ func TestKafkaAggregator_test(t *testing.T) {
 	//defer cleanup() // fixme it'd be great to rm containers in case t.Cleanup won't affect them
 	t.Cleanup(cleanup)
 
-	cache := NewFieldsCacheTest()
+	cache := testaggregator.NewFieldsCacheTest()
 	fieldToSchemasMap := make(map[string][]domain.Schema)
-	schemasReader := NewSchemasReaderTestImpl(fieldToSchemasMap)
-	schemasWriter := NewSchemasWriterTest(fieldToSchemasMap)
+	schemasReader := testaggregator.NewSchemasReaderTestImpl(fieldToSchemasMap)
+	schemasWriter := testaggregator.NewSchemasWriterTest(fieldToSchemasMap)
 
-	aggregator := kafka_aggregator.NewKafkaAggregator(kafkaBroker, mergedSourceTopic, schemasReader, cache)
+	aggregator := NewKafkaAggregator(kafkaBroker, mergedSourceTopic, schemasReader, cache)
 
 	schemaRaw := `{
 		"type": "record",

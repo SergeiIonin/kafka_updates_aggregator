@@ -17,7 +17,6 @@ func NewFieldsRedisCache(redisAddr string) *FieldsRedisCache {
 	return &FieldsRedisCache{redisClient: redisClient}
 }
 
-// it basically returns (string, error)
 func (frc *FieldsRedisCache) Get(ctx context.Context, id string, key string) (string, error) {
 	res, err := frc.redisClient.HGet(ctx, id, key).Result()
 	if errors.Is(err, redis.Nil) {
