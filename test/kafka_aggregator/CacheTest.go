@@ -1,4 +1,4 @@
-package test_kafka_aggregator
+package kafka_aggregator
 
 import (
 	"context"

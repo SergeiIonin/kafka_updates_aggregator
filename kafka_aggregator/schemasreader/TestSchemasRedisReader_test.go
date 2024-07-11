@@ -1,4 +1,4 @@
-package test_schemasreader
+package schemasreader
 
 import (
 	"context"
@@ -10,7 +10,6 @@ import (
 	tcWait "github.com/testcontainers/testcontainers-go/wait"
 	"kafka_updates_aggregator/domain"
 	"kafka_updates_aggregator/redisprefixes"
-	"kafka_updates_aggregator/kafka_aggregator/schemasreader"
 	"kafka_updates_aggregator/test"
 	"log"
 	"slices"
@@ -22,7 +21,7 @@ var (
 	redisAddr          string
 	redisContainer     tc.Container
 	ctx                context.Context
-	schemasRedisReader *schemasreader.SchemasRedisReader
+	schemasRedisReader *SchemasRedisReader
 	redisClient        *redis.Client
 	redisPrefixes      redisprefixes.RedisPrefixes
 )
@@ -56,7 +55,7 @@ func init() {
 
 	redisAddr = fmt.Sprintf("%s:%s", host, port.Port())
 	redisPrefixes = *redisprefixes.NewRedisPrefixes()
-	schemasRedisReader = schemasreader.NewSchemasRedisReader(redisAddr, redisPrefixes.FieldPrefix, redisPrefixes.SchemaPrefix)
+	schemasRedisReader = NewSchemasRedisReader(redisAddr, redisPrefixes.FieldPrefix, redisPrefixes.SchemaPrefix)
 	redisClient = redis.NewClient(&redis.Options{Addr: redisAddr})
 }
 

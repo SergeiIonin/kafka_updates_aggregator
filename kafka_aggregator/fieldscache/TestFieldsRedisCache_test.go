@@ -1,4 +1,4 @@
-package test_fieldscache
+package fieldscache
 
 import (
 	"context"
@@ -6,7 +6,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	tc "github.com/testcontainers/testcontainers-go"
 	tcWait "github.com/testcontainers/testcontainers-go/wait"
-	"kafka_updates_aggregator/kafka_aggregator/fieldscache"
 	"kafka_updates_aggregator/test"
 	"log"
 	"testing"
@@ -57,7 +56,7 @@ func TestFieldsRedisCache_test(t *testing.T) {
 		}
 	}(ctx, redisContainer, t)
 
-	cache := fieldscache.NewFieldsRedisCache(redisAddr)
+	cache := NewFieldsRedisCache(redisAddr)
 
 	t.Run("insert, get and update fields in cache", func(t *testing.T) {
 		userId := "bob"
