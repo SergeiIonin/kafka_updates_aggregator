@@ -1,0 +1,4 @@
+rest_api:
+  host: localhost
+  port: 8082
+  schema_registry_address: http://localhost:8081
