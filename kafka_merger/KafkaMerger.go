@@ -46,14 +46,14 @@ func readTopic(ctx context.Context, reader *kafka.Reader, ch chan<- kafka.Messag
 				log.Printf("[KafkaMerger] Reader is canceled")
 			}
 			close(ch)
-			return
 			log.Printf("[KafkaMerger] failed to read message: %v", err)
+			return
 		}
 		log.Printf("[KafkaMerger] message at topic/partition/offset %v/%v/%v: %s = %s\n",
 			m.Topic, m.Partition, m.Offset, string(m.Key), string(m.Value))
 		m.Headers = append(m.Headers,
-			kafka.Header{"initTopic", []byte(m.Topic)},
-			kafka.Header{"time", []byte(fmt.Sprintf("%d", m.Time.UnixMilli()))},
+			kafka.Header{Key: "initTopic", Value: []byte(m.Topic)},
+			kafka.Header{Key: "time", Value: []byte(fmt.Sprintf("%d", m.Time.UnixMilli()))},
 		)
 		m.Topic = ""
 		ch <- m
@@ -108,7 +108,7 @@ func (merger *KafkaMerger) writeToMergedTopic(ctx context.Context,
 	}
 }
 
-func (merger *KafkaMerger) Merge(ctx context.Context) {
+func (merger *KafkaMerger) Run(ctx context.Context) {
 	log.Println("[KafkaMerger] started")
 
 	inputChans := merger.readTopics(ctx)

@@ -18,10 +18,6 @@ func NewRestController(aggregationSchemasService *application.SchemaAggregationS
 	}
 }
 
-func (rc *RestController) Start(c *gin.Context) {
-	c.HTML(http.StatusOK, "start.html", nil)
-}
-
 func (rc *RestController) CreateSchema(c *gin.Context) {
 	var schemaDTO infra.SchemaDTO
 	err := c.ShouldBindJSON(&schemaDTO)

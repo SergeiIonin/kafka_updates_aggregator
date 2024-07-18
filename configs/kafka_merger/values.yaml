@@ -1,5 +1,7 @@
 SourceTopics:
   - topic1
   - topic2
-BrokerAddr: localhost:29092
+Brokers:
+  - localhost:9092
+GroupId: merger
 MergedSourceTopic: merged_topic

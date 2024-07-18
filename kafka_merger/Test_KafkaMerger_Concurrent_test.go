@@ -90,7 +90,7 @@ func Test_KafkaMerger_Concurrent_test(t *testing.T) {
 	}
 
 	testReader := test.KafkaTestReader{
-		kafka.NewReader(kafka.ReaderConfig{
+		Reader: kafka.NewReader(kafka.ReaderConfig{
 			Brokers:  []string{kafkaBroker},
 			Topic:    mergedSourceTopic,
 			MinBytes: 10e3, // 10KB
@@ -99,7 +99,7 @@ func Test_KafkaMerger_Concurrent_test(t *testing.T) {
 	}
 
 	go writeTestMessagesWithInterleaving(&testWriter)
-	go merger.Merge(context.Background())
+	go merger.Run(context.Background())
 	numMsgsTotal := msgsPerTopic * numTopics
 	count := 0
 	messages, err := testReader.ReadPlain(numMsgsTotal, &count)
