@@ -1,0 +1,5 @@
+Brokers:
+  - localhost:9092
+GroupId:: schemas_handler
+RedisAddress: localhost:6379
+

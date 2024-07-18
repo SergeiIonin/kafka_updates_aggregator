@@ -1,0 +1,7 @@
+kafka_schemas_handler:
+  brokers:
+{{range .Brokers }}
+    - {{ . }}
+{{end}}
+  redis_address: {{ .RedisAddress }}
+  group_id: {{ .GroupId }}
