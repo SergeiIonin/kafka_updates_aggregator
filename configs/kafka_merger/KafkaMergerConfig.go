@@ -1,4 +1,4 @@
-package kafka_merger
+package configs
 
 type KafkaMergerConfig struct {
 	KafkaMerger struct {

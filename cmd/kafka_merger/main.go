@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	configs "kafka_updates_aggregator/configs"
+	mergerConfig "kafka_updates_aggregator/configs/kafka_merger"
 	kafkamerger "kafka_updates_aggregator/kafka_merger"
 	"log"
 	"os"
@@ -37,7 +38,7 @@ func init() {
 }
 
 func main() {
-	var kafkaMergerConfig kafkamerger.KafkaMergerConfig
+	var kafkaMergerConfig mergerConfig.KafkaMergerConfig
 	err := yaml.Unmarshal(configFile, &kafkaMergerConfig)
 	if err != nil {
 		log.Fatalf("Error parsing kafkaMergerConfig file: %v", err)
