@@ -1,4 +1,4 @@
-package kafka_merger
+package configs
 
 import (
 	"github.com/pkg/errors"
@@ -27,15 +27,15 @@ var (
 	}
 )
 
-func valuesFromYamlFile(dataFile string) (map[string]interface{}, error) {
-	data, err := openFile(dataFile)
+func valuesFromYamlFile(valuesFile string) (map[string]interface{}, error) {
+	data, err := openFile(valuesFile)
 	if err != nil {
 		return nil, errors.Wrap(err, "opening data file")
 	}
 	defer func(data *os.File) {
         err := data.Close()
         if err != nil {
-            log.Printf("Error closing config for kafka_merger: %v", err)
+            log.Printf("Error closing config: %v", err)
         }
     }(data)
 
@@ -51,12 +51,12 @@ func valuesFromYamlFile(dataFile string) (map[string]interface{}, error) {
 	return values, nil
 }
 
-func parse(templateFile, dataFile, outputFile string) error {
+func parse(templateFile, valuesFile, outputFile string) error {
 	tmpl, err := parseFile(templateFile)
 	if err != nil {
 		return errors.Wrap(err, "parsing template file")
 	}
-	values, err := valuesFromYamlFile(dataFile)
+	values, err := valuesFromYamlFile(valuesFile)
 	if err != nil {
 		return err
 	}
@@ -72,6 +72,6 @@ func parse(templateFile, dataFile, outputFile string) error {
 	return nil
 }
 
-func (cr *ConfigReader) ReadConfig(configTemplate, valuesPath, outputPath string) error {
-	return parse(configTemplate, valuesPath, outputPath)
+func (cr *ConfigReader) ReadConfig(templateFile, valuesFile, outputFile string) error {
+	return parse(templateFile, valuesFile, outputFile)
 }

@@ -1,0 +1,13 @@
+kafka_merger:
+  source_topics:
+
+    - topic1
+
+    - topic2
+
+  brokers:
+
+    - localhost:9092
+
+  group_id: merger
+  merged_source_topic: merged_topic

@@ -244,7 +244,7 @@ func Test_e2eMultipleUsers_test(t *testing.T) {
 		go e2eutils.WriteMessagesForMultipleIdsToSourceTopics(t, kafkaAddr, messsagesWithId, 50*time.Millisecond)
 
 		// MERGE MESSAGES INTO SINGLE TOPIC
-		go kafkaMerger.Merge(ctx)
+		go kafkaMerger.Run(ctx)
 
 		// WRITE SCHEMAS
 		e2eutils.WriteSchemas(t, kafkaAddr, schemasTopic, schemas)
