@@ -1,0 +1,5 @@
+kafka_aggregator:
+  broker: localhost:9092
+  merged_source_topic: merged_topic
+  group_id: aggregator
+  redis_address: localhost:6379

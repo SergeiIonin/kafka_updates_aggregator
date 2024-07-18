@@ -253,7 +253,7 @@ func Test_e2eMultipleUsers_test(t *testing.T) {
 		e2eutils.ProcessSchemas(t, schemasHandler, redisClient, aggregatedTopics)
 
 		// AGGREGATE NEW MESSAGES ACCORDING TO SCHEMAS
-		go aggregator.Listen(ctx)
+		go aggregator.Run(ctx)
 
 		aggregatedMsgsChans := e2eutils.ReadAggregatedMessages(t, []string{kafkaBroker}, topicToNumExpectedMessages)
 

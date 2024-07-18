@@ -41,7 +41,7 @@ func NewKafkaAggregator(kafkaBroker string, mergedSourcesTopic string, schemasRe
 	}
 }
 
-func (ka *KafkaAggregator) Listen(ctx context.Context) {
+func (ka *KafkaAggregator) Run(ctx context.Context) {
 	log.Printf("[KafkaAggregator] started")
 	for {
 		msg, err := ka.reader.ReadMessage(ctx)

@@ -43,7 +43,6 @@ func main() {
 	if err != nil {
 		log.Fatalf("Error parsing kafkaMergerConfig file: %v", err)
 	}
-	log.Printf("KafkaMergerConfig: %+v", kafkaMergerConfig)
 
 	conf := kafkaMergerConfig.KafkaMerger
 	kafkaMerger := kafkamerger.NewKafkaMerger(conf.Brokers, conf.SourceTopics, conf.GroupID, conf.MergedSourceTopic)
