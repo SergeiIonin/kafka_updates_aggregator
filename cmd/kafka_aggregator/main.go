@@ -45,7 +45,6 @@ func main() {
 	if err != nil {
 		log.Fatalf("Error parsing kafkaAggregatorConfig file: %v", err)
 	}
-	log.Printf("KafkaAggregatorConfig: %+v", kafkaAggregatorConfig)
 
 	conf := kafkaAggregatorConfig.KafkaAggregator
 	schemasReader := schemasreader.NewSchemasRedisReader(conf.RedisAddress)
