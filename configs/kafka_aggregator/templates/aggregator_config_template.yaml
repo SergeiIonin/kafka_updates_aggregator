@@ -1,0 +1,5 @@
+kafka_aggregator:
+  broker: {{ .Broker }}
+  merged_source_topic: {{ .MergedSourceTopic }}
+  group_id: {{ .GroupId }}
+  redis_address: {{ .RedisAddress }}

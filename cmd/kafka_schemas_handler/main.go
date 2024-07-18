@@ -44,7 +44,6 @@ func main() {
 	if err != nil {
 		log.Fatalf("Error parsing kafkaSchemasHandlerConfig file: %v", err)
 	}
-	log.Printf("kafkaSchemasHandlerConfig: %+v", kafkaSchemasHandlerConfig)
 
 	conf := kafkaSchemasHandlerConfig.KafkaSchemasHandler
 

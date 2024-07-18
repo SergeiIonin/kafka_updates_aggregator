@@ -1,0 +1,4 @@
+Broker: localhost:9092
+GroupId: aggregator
+MergedSourceTopic: merged_topic
+RedisAddress: localhost:6379
