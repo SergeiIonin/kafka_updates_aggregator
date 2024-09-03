@@ -54,9 +54,9 @@ func init() {
 	}
 
 	if _, err = kafkaClient.CreateTopics(context.Background(), &kafka.CreateTopicsRequest{
-		kafkaAddr,
-		topicConfigs,
-		false,
+		Addr: kafkaAddr,
+		Topics: topicConfigs,
+		ValidateOnly: false,
 	},
 	); err != nil {
 		log.Fatalf("could not create topics %v", err)
@@ -116,7 +116,7 @@ func TestKafkaAggregator_test(t *testing.T) {
 	assert.NoError(t, err)
 
 	testReader := test.KafkaTestReader{
-		kafka.NewReader(kafka.ReaderConfig{
+		Reader: kafka.NewReader(kafka.ReaderConfig{
 			Brokers:  []string{kafkaBroker},
 			Topic:    aggregateTopic,
 			MinBytes: 10e3, // 10KB
