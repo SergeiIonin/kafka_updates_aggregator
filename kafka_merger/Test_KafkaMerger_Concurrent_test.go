@@ -57,9 +57,9 @@ func init() {
 	}
 
 	if _, err = kafka_client.CreateTopics(context.Background(), &kafka.CreateTopicsRequest{
-		kafkaAddr,
-		topicConfigs,
-		false,
+		Addr: kafkaAddr,
+		Topics: topicConfigs,
+		ValidateOnly: false,
 	},
 	); err != nil {
 		log.Fatalf("could not create topics %v", err)
