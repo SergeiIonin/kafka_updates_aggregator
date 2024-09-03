@@ -138,11 +138,11 @@ func TestKafkaAggregator_test(t *testing.T) {
 	t.Logf("value: %v", value)
 
 	convertToInt := func(i any) int64 {
-		switch i.(type) {
+		switch v := i.(type) {
 		case int:
-			return int64(i.(int))
+			return int64(v)
 		case float64:
-			return int64(i.(float64))
+			return int64(float64(v))
 		}
 		t.Fatalf("unexpected type %T", i)
 		return -1
