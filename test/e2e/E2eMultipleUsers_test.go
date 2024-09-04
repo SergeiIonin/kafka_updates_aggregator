@@ -135,7 +135,7 @@ func init() {
 			continue
 		case e := <-errorsChan:
 			panic(fmt.Sprintf("Kafka and Redis haven't initialized due to error %v", e))
-		case _ = <-time.After(startTimeout):
+		case <-time.After(startTimeout):
 			panic(fmt.Sprintf("Kafka and Redis haven't initialized within %v", startTimeout))
 		}
 		break
@@ -146,15 +146,16 @@ func init() {
 	fieldsRedisCache = fieldscache.NewFieldsRedisCache(redisAddr)
 }
 
+func cleanup() {
+	if err := test.TerminateContainer(dockerClient, kafkaContainerId); err != nil {
+		log.Fatalf(err.Error())
+	}
+	if err := test.TerminateContainer(dockerClient, redisContainerId); err != nil {
+		log.Fatalf(err.Error())
+	}
+}
+
 func Test_e2eMultipleUsers_test(t *testing.T) {
-	defer func() {
-		if err := test.TerminateContainer(dockerClient, kafkaContainerId); err != nil {
-			t.Fatalf(err.Error())
-		}
-		if err := test.TerminateContainer(dockerClient, redisContainerId); err != nil {
-			t.Fatalf(err.Error())
-		}
-	}()
 
 	schemasHandler := kafkaschemashandler.NewKafkaSchemasHandler(kafkaBroker, schemasRedisWriter)
 
@@ -163,6 +164,7 @@ func Test_e2eMultipleUsers_test(t *testing.T) {
 	aggregator := kafka_aggregator.NewKafkaAggregator(kafkaBroker, mergedSourcesTopic, schemasRedisReader, fieldsRedisCache)
 
 	t.Run("get aggregated records for the fields from the source topics according to the schemas", func(t *testing.T) {
+		t.Cleanup(cleanup)
 		ctx := context.Background()
 
 		// TEST DATA
