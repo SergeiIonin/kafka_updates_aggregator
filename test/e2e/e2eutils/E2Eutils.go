@@ -224,9 +224,10 @@ func readTopic(t *testing.T, reader *kafka.Reader, res []kafka.Message, expected
 	defer func() {
 		err := reader.Close()
 		if err != nil {
-			t.Fatalf("Error closing kafka reader: %v", err)
+			log.Fatalf("Error closing kafka reader: %v", err)
 			return
 		}
+		close(msgChan)
 	}()
 
 	topic := reader.Config().Topic
@@ -247,8 +248,6 @@ func readTopic(t *testing.T, reader *kafka.Reader, res []kafka.Message, expected
 	}
 	t.Logf("[E2E Test] readTopic is finished %s", topic) // fixme rm
 	msgChan <- res
-	close(msgChan)
-	return
 }
 
 func ReadAggregatedMessages(t *testing.T, brokers []string, mapTopicToMessagesExpected map[string]int) []chan []kafka.Message {
