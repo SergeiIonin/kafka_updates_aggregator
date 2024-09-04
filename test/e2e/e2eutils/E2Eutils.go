@@ -66,9 +66,9 @@ func NewWithdrawal(withdrawal int) Withdrawal {
 
 type BalanceUpdates struct {
 	topic      string
-	Balance    int `json:"balance"`    // fixme: should be int
-	Deposit    int `json:"deposit"`    // fixme: should be int
-	Withdrawal int `json:"withdrawal"` // fixme: should be int
+	Balance    int `json:"balance"`
+	Deposit    int `json:"deposit"`
+	Withdrawal int `json:"withdrawal"`
 }
 
 func (d BalanceUpdates) Topic() string {
@@ -81,7 +81,7 @@ func NewBalanceUpdates(balance int, deposit int, withdrawal int) BalanceUpdates 
 type LoginInfo struct {
 	topic     string
 	LoginTime string `json:"login_time"`
-	Balance   int    `json:"balance"` // fixme: should be int
+	Balance   int    `json:"balance"`
 }
 
 func (d LoginInfo) Topic() string {
@@ -246,7 +246,6 @@ func readTopic(t *testing.T, reader *kafka.Reader, res []kafka.Message, expected
 			break
 		}
 	}
-	t.Logf("[E2E Test] readTopic is finished %s", topic) // fixme rm
 	msgChan <- res
 }
 
