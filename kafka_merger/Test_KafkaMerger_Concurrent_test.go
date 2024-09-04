@@ -68,6 +68,8 @@ func init() {
 
 // todo add test_containers support and ensure test_kafka_aggregator topics exist and have messages before the test_kafka_aggregator runs
 func Test_KafkaMerger_Concurrent_test(t *testing.T) {
+	// fixme seems like if test panics (e.g. due to timeout) then the container won't be removed
+	// add defer with cleanup, but also check if the container isn't removed already
 	cleanup := func() {
 		test.CleanupAndGracefulShutdown(t, dockerClient, containerId)
 	}
