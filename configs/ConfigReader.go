@@ -1,15 +1,21 @@
 package configs
 
 import (
-	"github.com/pkg/errors"
-	"gopkg.in/yaml.v3"
+	"fmt"
 	"html/template"
 	"io"
-    "log"
-    "os"
+	"log"
+	"os"
+
+	"github.com/pkg/errors"
+	"gopkg.in/yaml.v3"
 )
 
 type ConfigReader struct {
+}
+
+func GetPath(base string, sub string) string {
+	return fmt.Sprintf("%s/%s", base, sub)
 }
 
 func NewConfigReader() *ConfigReader {
