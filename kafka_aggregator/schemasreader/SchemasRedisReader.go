@@ -10,6 +10,7 @@ import (
 	"log"
 )
 
+// SchemasRedisReader is used to read all schemas where the field is present
 type SchemasRedisReader struct {
 	redis        *redis.Client
 	fieldPrefix  string // "field."
