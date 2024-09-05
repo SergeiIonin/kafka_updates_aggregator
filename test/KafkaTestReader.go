@@ -2,10 +2,11 @@ package test
 
 import (
 	"context"
-	"github.com/segmentio/kafka-go"
 	"kafka_updates_aggregator/domain"
 	"log"
 	"time"
+
+	"github.com/segmentio/kafka-go"
 )
 
 type KafkaTestReader struct {
@@ -28,7 +29,7 @@ func (ktr *KafkaTestReader) Read(expected int, count *int) ([]kafka.Message, err
 			m, err := ktr.ReadMessage(ctx)
 			log.Printf("[KafkaTestReader] read message %s", string(m.Value))
 			if err != nil {
-				if domain.ContextOrDeadlineExceeded(err) {
+				if domain.ContextCanceledOrDeadlineExceeded(err) {
 					log.Printf("[KafkaTestReader] context cancelled")
 					return messages, err
 				}

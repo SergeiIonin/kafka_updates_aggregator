@@ -3,9 +3,10 @@ package kafka_merger
 import (
 	"context"
 	"fmt"
-	"github.com/segmentio/kafka-go"
 	"kafka_updates_aggregator/domain"
 	"log"
+
+	"github.com/segmentio/kafka-go"
 )
 
 type KafkaMerger struct {
@@ -42,7 +43,7 @@ func readTopic(ctx context.Context, reader *kafka.Reader, ch chan<- kafka.Messag
 	for {
 		m, err := reader.ReadMessage(ctx)
 		if err != nil {
-			if domain.ContextOrDeadlineExceeded(err) {
+			if domain.ContextCanceledOrDeadlineExceeded(err) {
 				log.Printf("[KafkaMerger] Reader is canceled")
 			}
 			close(ch)
@@ -62,7 +63,7 @@ func readTopic(ctx context.Context, reader *kafka.Reader, ch chan<- kafka.Messag
 
 func writeToMergedChan(ctx context.Context, chansMerger ChannelsMerger, output chan<- kafka.Message, inputs []chan kafka.Message) {
 	if err := chansMerger.Merge(ctx, output, inputs); err != nil {
-		if domain.ContextOrDeadlineExceeded(err) {
+		if domain.ContextCanceledOrDeadlineExceeded(err) {
 			return
 		}
 		log.Fatalf("[KafkaMerger] failed to write message: %v", err)

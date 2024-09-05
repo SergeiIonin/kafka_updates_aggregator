@@ -5,6 +5,6 @@ import (
 	"errors"
 )
 
-func ContextOrDeadlineExceeded(err error) bool {
+func ContextCanceledOrDeadlineExceeded(err error) bool {
 	return errors.Is(err, context.DeadlineExceeded) || errors.Is(err, context.Canceled)
 }
