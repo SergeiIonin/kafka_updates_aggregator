@@ -23,9 +23,11 @@ var (
 
 func init() {
 	pwd, _ := os.Getwd()
-	configTplPath = fmt.Sprintf("%s/configs/restapi/templates/restapi_config_template.yaml", pwd)
-	valuesPath = fmt.Sprintf("%s/configs/restapi/values.yaml", pwd)
-	configPath = fmt.Sprintf("%s/configs/restapi/restapi_config.yaml", pwd)
+	basePath := fmt.Sprintf("%s/configs/restapi", pwd)
+
+	configTplPath = configs.GetPath(basePath, "templates/restapi_config_template.yaml")
+	valuesPath = configs.GetPath(basePath, "values.yaml")
+	configPath = configs.GetPath(basePath, "restapi_config.yaml")
 
 	configReader := configs.NewConfigReader()
 
@@ -33,6 +35,7 @@ func init() {
 	if err != nil {
 		log.Fatalf("Error creating restapi_config: %v", err)
 	}
+	
 	configFile, err = os.ReadFile(configPath)
 	if err != nil {
 		log.Fatalf("Error reading restapi config file: %v", err)

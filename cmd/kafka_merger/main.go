@@ -21,9 +21,11 @@ var (
 
 func init() {
 	pwd, _ := os.Getwd()
-	configTplPath = fmt.Sprintf("%s/configs/kafka_merger/templates/merger_config_template.yaml", pwd)
-	valuesPath = fmt.Sprintf("%s/configs/kafka_merger/values.yaml", pwd)
-	configPath = fmt.Sprintf("%s/configs/kafka_merger/merger_config.yaml", pwd)
+	basePath := fmt.Sprintf("%s/configs/kafka_merger", pwd)
+
+	configTplPath = configs.GetPath(basePath, "templates/merger_config_template.yaml")
+	valuesPath = configs.GetPath(basePath, "values.yaml")
+	configPath = configs.GetPath(basePath, "merger_config.yaml")
 
 	configReader := configs.NewConfigReader()
 
@@ -31,6 +33,7 @@ func init() {
 	if err != nil {
 		log.Fatalf("Error creating merger_config: %v", err)
 	}
+
 	configFile, err = os.ReadFile(configPath)
 	if err != nil {
 		log.Fatalf("Error reading kafka_merger config file: %v", err)
