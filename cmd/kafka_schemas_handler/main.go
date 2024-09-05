@@ -34,7 +34,7 @@ func init() {
 	if err != nil {
 		log.Fatalf("Error creating merger_config: %v", err)
 	}
-	
+
 	configFile, err = os.ReadFile(configPath)
 	if err != nil {
 		log.Fatalf("Error reading kafka_merger config file: %v", err)

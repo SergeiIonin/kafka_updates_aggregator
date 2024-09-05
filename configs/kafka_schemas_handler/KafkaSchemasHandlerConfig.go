@@ -1,4 +1,4 @@
-package kafka_schemas_handler
+package configs
 
 type KafkaSchemasHandlerConfig struct {
 	KafkaSchemasHandler struct {
