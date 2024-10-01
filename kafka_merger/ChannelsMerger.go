@@ -49,7 +49,7 @@ func (m *ChannelsMerger) Merge(ctx context.Context, output chan<- kafka.Message,
 		case <-ctx.Done():
 			log.Printf("Merging is canceled") // fixme rm
 			return context.Canceled
-		case <-time.After(25 * time.Millisecond):
+		case <-time.After(25 * time.Millisecond): // fixme use timer and reset it instead, otherwise is not memory-efficient
 			log.Printf("Flushing to output, len(pq) = %d", len(pq)) // fixme rm
 			mutex.Lock()
 			for len(pq) > 0 {
