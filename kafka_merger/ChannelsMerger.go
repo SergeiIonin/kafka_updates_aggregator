@@ -22,22 +22,23 @@ func (m *ChannelsMerger) Merge(ctx context.Context, output chan<- kafka.Message,
 		wg.Add(1)
 		go func(ch <-chan kafka.Message) {
 			defer func() {
-				log.Printf("Reading from channel %d is finished", i) // fixme rm
+				log.Printf("[ChannelsMerger] Reading from channel %d is finished", i) // fixme rm
 				wg.Done()
 			}()
-			log.Printf("Start reading from channel %d", i) // fixme rm
+			log.Printf("[ChannelsMerger] Start reading from channel %d", i) // fixme rm
 			for msg := range ch {
 				mutex.Lock()
 				heap.Push(&pq, msg)
 				mutex.Unlock()
-				log.Printf("size of queue = %d", len(pq)) // fixme rm
+				log.Printf("[ChannelsMerger] size of queue = %d", len(pq)) // fixme rm
 			}
 		}(ch)
 	}
 
+	// fixme is it ok to move it to defer?
 	go func() {
 		wg.Wait()
-		log.Println("Closing the output channel") // fixme rm
+		log.Println("[ChannelsMerger] Closing the output channel") // fixme rm
 		close(output)
 	}()
 
@@ -47,16 +48,16 @@ func (m *ChannelsMerger) Merge(ctx context.Context, output chan<- kafka.Message,
 		}
 		select {
 		case <-ctx.Done():
-			log.Printf("Merging is canceled") // fixme rm
+			log.Printf("[ChannelsMerger] Merging is canceled") // fixme rm
 			return context.Canceled
-		case <-time.After(25 * time.Millisecond): // fixme use timer and reset it instead, otherwise is not memory-efficient
-			log.Printf("Flushing to output, len(pq) = %d", len(pq)) // fixme rm
+		case <-time.After(5 * time.Millisecond): // fixme use timer and reset it instead, otherwise is not memory-efficient
+			log.Printf("[ChannelsMerger] Flushing to output, len(pq) = %d", len(pq)) // fixme rm
 			mutex.Lock()
 			for len(pq) > 0 {
 				output <- heap.Pop(&pq).(kafka.Message)
 			}
 			mutex.Unlock()
-			log.Printf("Messages flushed") // fixme rm
+			log.Printf("[ChannelsMerger] Messages flushed") // fixme rm
 		}
 	}
 }

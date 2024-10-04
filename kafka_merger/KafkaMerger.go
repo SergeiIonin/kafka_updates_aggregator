@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"kafka_updates_aggregator/domain"
 	"log"
+	"time"
 
 	"github.com/segmentio/kafka-go"
 )
@@ -77,12 +78,12 @@ func (merger *KafkaMerger) readTopics(ctx context.Context) []chan kafka.Message 
 	}
 
 	inputChans := make([]chan kafka.Message, 0, len(merger.Topics))
-	for _, _ = range merger.Topics {
+	for range merger.Topics {
 		inputChans = append(inputChans, make(chan kafka.Message))
 	}
 
-	for i := range merger.Topics {
-		go readTopic(ctx, readers[i], inputChans[i])
+	for i, reader := range readers {
+		go readTopic(ctx, reader, inputChans[i])
 	}
 
 	return inputChans
@@ -103,6 +104,7 @@ func (merger *KafkaMerger) writeToMergedTopic(ctx context.Context,
 
 	for msg := range outputChan {
 		err := writer.WriteMessages(ctx, msg)
+		log.Printf("[KafkaMerger] message written to merged topic: %s at %d", string(msg.Value), time.Now().UnixMilli()) // fixme rm
 		if err != nil {
 			log.Fatalf("[KafkaMerger] failed to write message to merged topic: %v", err)
 		}

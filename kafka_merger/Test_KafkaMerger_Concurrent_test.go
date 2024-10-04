@@ -30,8 +30,7 @@ func init() {
 	var err error
 	dockerClient, err = client.NewClientWithOpts(client.WithVersion("1.45"))
 	if err != nil {
-		log.Printf("error creating docker client: %s", err.Error())
-		panic(err)
+		log.Fatalf("error creating docker client: %s", err.Error())
 	}
 	containerId, err = test.CreateKafkaWithKRaftContainer(dockerClient)
 	if err != nil {
@@ -67,14 +66,14 @@ func init() {
 }
 
 // todo add test_containers support and ensure test_kafka_aggregator topics exist and have messages before the test_kafka_aggregator runs
+// should pass in 60s
 func Test_KafkaMerger_Concurrent_test(t *testing.T) {
-	// fixme seems like if test panics (e.g. due to timeout) then the container won't be removed
-	// add defer with cleanup, but also check if the container isn't removed already
+	
 	cleanup := func() {
 		test.CleanupAndGracefulShutdown(t, dockerClient, containerId)
 	}
 
-	//defer cleanup() // fixme it'd be great to rm containers in case t.Cleanup won't affect them
+	defer cleanup()
 	t.Cleanup(cleanup)
 
 	merger := KafkaMerger{
@@ -100,8 +99,10 @@ func Test_KafkaMerger_Concurrent_test(t *testing.T) {
 		}),
 	}
 
-	go writeTestMessagesWithInterleaving(&testWriter)
 	go merger.Run(context.Background())
+
+	go writeTestMessagesWithInterleaving(&testWriter)
+	
 	numMsgsTotal := msgsPerTopic * numTopics
 	count := 0
 	messages, err := testReader.ReadPlain(numMsgsTotal, &count)
@@ -123,10 +124,9 @@ func Test_KafkaMerger_Concurrent_test(t *testing.T) {
 	}
 
 	offsetsPerTopicMap := test.GetOffsetsPerTopic(messages)
-	offsetsPerTopic := make([]int64, msgsPerTopic)
 	sorted := false
 	for _, topic := range topics {
-		offsetsPerTopic = offsetsPerTopicMap[topic]
+		offsetsPerTopic := offsetsPerTopicMap[topic]
 		log.Printf("Topic: %s, Offsets: %v", topic, offsetsPerTopic)
 		sorted = slices.IsSorted(offsetsPerTopic)
 		if !sorted {
@@ -155,6 +155,8 @@ func writeTestMessagesWithInterleaving(writer *test.KafkaTestWriter) {
 	wg := &sync.WaitGroup{}
 	ctx := context.Background()
 
+	wg.Add(len(topics))
+
 	for _, topic := range topics {
 		topicWriter := kafka.Writer{
 			Addr:     kafkaAddr,
@@ -168,15 +170,16 @@ func writeTestMessagesWithInterleaving(writer *test.KafkaTestWriter) {
 					return
 				}
 			}()
-			wg.Add(1)
 			msgs := writer.MakeMessagesForTopic(topic, msgsPerTopic)
 			for _, msg := range msgs {
 				log.Printf("Writing message %s", string(msg.Value))
 				if err := topicWriter.WriteMessages(ctx, msg); err != nil {
 					log.Fatalf("could not write messages %v", err)
 				}
-				time.Sleep(50 * time.Millisecond)
+				time.Sleep(1 * time.Millisecond)
 			}
 		}(topic)
 	}
+	wg.Wait()
+	log.Printf("Finished writing test messages")
 }
