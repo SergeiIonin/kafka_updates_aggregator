@@ -104,9 +104,14 @@ func init() {
 	}
 	initDocker()
 	ids := make([]string, 0, 2)
+
 	go runTask(initKafka)
 	go runTask(initRedis)
+	
+    timer := time.NewTimer(startTimeout)
+
 	for {
+		timer.Reset(startTimeout)
 		select {
 		case id := <-chanContainerIds:
 			ids = append(ids, id)
@@ -116,7 +121,7 @@ func init() {
 			continue
 		case e := <-errorsChan:
 			panic(fmt.Sprintf("Kafka and Redis haven't initialized due to error %v", e))
-		case _ = <-time.After(startTimeout):
+		case <- timer.C:
 			panic(fmt.Sprintf("Kafka and Redis haven't initialized within %v", startTimeout))
 		}
 		break

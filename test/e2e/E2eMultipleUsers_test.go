@@ -123,9 +123,14 @@ func init() {
 	}
 	initDocker()
 	ids := make([]string, 0, 2)
+
 	go runTask(initKafka)
 	go runTask(initRedis)
+
+    timer := time.NewTimer(startTimeout)  
+    
 	for {
+        timer.Reset(startTimeout) 
 		select {
 		case id := <-chanContainerIds:
 			ids = append(ids, id)
@@ -135,7 +140,7 @@ func init() {
 			continue
 		case e := <-errorsChan:
 			panic(fmt.Sprintf("Kafka and Redis haven't initialized due to error %v", e))
-		case <-time.After(startTimeout):
+		case <- timer.C:
 			panic(fmt.Sprintf("Kafka and Redis haven't initialized within %v", startTimeout))
 		}
 		break
@@ -257,12 +262,15 @@ func Test_e2eMultipleUsers_test(t *testing.T) {
 		// AGGREGATE NEW MESSAGES ACCORDING TO SCHEMAS
 		go aggregator.Run(ctx)
 
+		// READ AGGREGATED MESSAGES INTO SEPARATE CHANNELS
 		aggregatedMsgsChans := e2eutils.ReadAggregatedMessages(t, []string{kafkaBroker}, topicToNumExpectedMessages)
 
 		t.Logf("[E2E Test] Reading aggregations")
 
+		// COLLECT AGGREGATIONS FOR MULTIPLE USERS
 		aggregatesBalanceUpdates, aggregatesLoginInfo := CollectAggregationsForMultipleUsers(t, aggregatedMsgsChans)
 
+		// ASSERT AGGREGATIONS
 		assertAggregations(t, aggregatesBalanceUpdates, aggregatesLoginInfo)
 	})
 }

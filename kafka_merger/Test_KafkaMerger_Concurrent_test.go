@@ -73,7 +73,6 @@ func Test_KafkaMerger_Concurrent_test(t *testing.T) {
 		test.CleanupAndGracefulShutdown(t, dockerClient, containerId)
 	}
 
-	defer cleanup()
 	t.Cleanup(cleanup)
 
 	merger := KafkaMerger{

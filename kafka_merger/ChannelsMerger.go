@@ -42,15 +42,19 @@ func (m *ChannelsMerger) Merge(ctx context.Context, output chan<- kafka.Message,
 		close(output)
 	}()
 
+	timerDuration := 5 * time.Millisecond 
+    timer := time.NewTimer(timerDuration)
+
 	for {
 		if len(pq) == 0 {
 			continue
 		}
+		timer.Reset(timerDuration)
 		select {
 		case <-ctx.Done():
 			log.Printf("[ChannelsMerger] Merging is canceled") // fixme rm
 			return context.Canceled
-		case <-time.After(5 * time.Millisecond): // fixme use timer and reset it instead, otherwise is not memory-efficient
+		case <-timer.C: // fixme use timer and reset it instead, otherwise is not memory-efficient
 			log.Printf("[ChannelsMerger] Flushing to output, len(pq) = %d", len(pq)) // fixme rm
 			mutex.Lock()
 			for len(pq) > 0 {
