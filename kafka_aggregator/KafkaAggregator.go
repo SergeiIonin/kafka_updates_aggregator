@@ -48,7 +48,7 @@ func (ka *KafkaAggregator) Run(ctx context.Context) {
 		currentTime := time.Now().UnixMilli()
 		log.Printf("[KafkaAggregator] %d Reading message %s", currentTime, string(msg.Value))
 		if err != nil {
-			if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+			if domain.ContextCanceledOrDeadlineExceeded(err) {
 				return
 			}
 			errMsg := fmt.Sprintf("[KafkaAggregator] could not read message %v", err)
@@ -57,7 +57,7 @@ func (ka *KafkaAggregator) Run(ctx context.Context) {
 		id := getIdFromMessage(msg)
 		log.Printf("[KafkaAggregator] aggregation key %s", id) // fixme
 		if err = ka.WriteAggregate(ctx, id, msg); err != nil {
-			if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+			if domain.ContextCanceledOrDeadlineExceeded(err) {
 				return
 			}
 			errMsg := fmt.Sprintf("[KafkaAggregator] could not write message %v", err)
