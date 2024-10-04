@@ -49,9 +49,28 @@ func GetOffsetsPerTopic(messages []kafka.Message) map[string][]int64 {
 }
 
 func CleanupAndGracefulShutdown(t *testing.T, dockerClient *client.Client, containerId string) {
-	if err := dockerClient.ContainerRemove(context.Background(), containerId, container.RemoveOptions{Force: true}); err != nil {
+	if err := GracefulShutdown(dockerClient, containerId); err != nil {
 		t.Fatalf("could not remove container %v, consider deleting it manually!", err)
 	}
+}
+
+func GracefulShutdown(dockerClient *client.Client, containerId string) error {
+	log.Printf("Removing container %s \n", containerId)
+    inspection, err := dockerClient.ContainerInspect(context.Background(), containerId)
+    if err != nil {
+        log.Printf("could not inspect container %v, consider deleting it manually!", err)
+		return err
+    }
+
+    if !inspection.State.Running {
+		return nil
+    }
+
+    if err = dockerClient.ContainerRemove(context.Background(), containerId, container.RemoveOptions{Force: true}); err != nil {
+        log.Printf("could not remove container %v, consider deleting it manually!", err)
+		return err
+    }
+	return nil
 }
 
 func waitKafkaIsUp() error {
