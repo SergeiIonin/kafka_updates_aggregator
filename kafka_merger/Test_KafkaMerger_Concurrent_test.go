@@ -66,7 +66,7 @@ func init() {
 }
 
 // todo add test_containers support and ensure test_kafka_aggregator topics exist and have messages before the test_kafka_aggregator runs
-// should pass in 60s
+// should pass in 30s
 func Test_KafkaMerger_Concurrent_test(t *testing.T) {
 	
 	cleanup := func() {
@@ -93,8 +93,10 @@ func Test_KafkaMerger_Concurrent_test(t *testing.T) {
 		Reader: kafka.NewReader(kafka.ReaderConfig{
 			Brokers:  []string{kafkaBroker},
 			Topic:    mergedSourceTopic,
-			MinBytes: 10e3, // 10KB
+			MinBytes: 1e3, // 1KB
 			MaxBytes: 10e6, // 10MB
+			ReadBackoffMin: 5 * time.Millisecond,
+			ReadBackoffMax: 10 * time.Millisecond,
 		}),
 	}
 
@@ -157,8 +159,11 @@ func writeTestMessagesWithInterleaving(writer *test.KafkaTestWriter) {
 	wg.Add(len(topics))
 
 	for _, topic := range topics {
-		topicWriter := kafka.Writer{
+		topicWriter := kafka.Writer {
 			Addr:     kafkaAddr,
+			WriteBackoffMin: 1 * time.Millisecond,
+			WriteBackoffMax: 5 * time.Millisecond,
+			BatchTimeout:   1 * time.Millisecond,
 			Balancer: &kafka.LeastBytes{},
 		}
 		go func(topic string) {
@@ -171,11 +176,11 @@ func writeTestMessagesWithInterleaving(writer *test.KafkaTestWriter) {
 			}()
 			msgs := writer.MakeMessagesForTopic(topic, msgsPerTopic)
 			for _, msg := range msgs {
-				log.Printf("Writing message %s", string(msg.Value))
+				log.Printf("Writing message %s at %d", string(msg.Value), time.Now().UnixMilli())
 				if err := topicWriter.WriteMessages(ctx, msg); err != nil {
 					log.Fatalf("could not write messages %v", err)
 				}
-				time.Sleep(1 * time.Millisecond)
+				time.Sleep(5 * time.Millisecond)
 			}
 		}(topic)
 	}

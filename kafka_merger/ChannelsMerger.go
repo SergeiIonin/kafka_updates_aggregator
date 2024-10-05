@@ -18,8 +18,8 @@ func (m *ChannelsMerger) Merge(ctx context.Context, output chan<- kafka.Message,
 	heap.Init(&pq)
 	mutex := &sync.Mutex{}
 
+	wg.Add(len(inputs))
 	for i, ch := range inputs {
-		wg.Add(1)
 		go func(ch <-chan kafka.Message) {
 			defer func() {
 				log.Printf("[ChannelsMerger] Reading from channel %d is finished", i) // fixme rm
@@ -42,7 +42,7 @@ func (m *ChannelsMerger) Merge(ctx context.Context, output chan<- kafka.Message,
 		close(output)
 	}()
 
-	timerDuration := 5 * time.Millisecond 
+	timerDuration := 15 * time.Millisecond // in theory this value is capped by the ReadBackoffMax of consumer (reader), if it's much smaller than that, we may waste some cycles
     timer := time.NewTimer(timerDuration)
 
 	for {
@@ -51,7 +51,7 @@ func (m *ChannelsMerger) Merge(ctx context.Context, output chan<- kafka.Message,
 		}
 		timer.Reset(timerDuration)
 		select {
-		case <-ctx.Done():
+		case <-ctx.Done(): 
 			log.Printf("[ChannelsMerger] Merging is canceled") // fixme rm
 			return context.Canceled
 		case <-timer.C: // fixme use timer and reset it instead, otherwise is not memory-efficient

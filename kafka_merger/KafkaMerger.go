@@ -26,8 +26,10 @@ func createTopicReader(brokers []string, topic string, groupId string) *kafka.Re
 		Brokers:     brokers,
 		Topic:       topic,
 		GroupID:     groupId,
-		MinBytes:    10e3, // 10KB
-		MaxBytes:    10e6, // 10MB
+		MinBytes:    1e3, // 1KB
+		MaxBytes:    10e6, // 10MB,
+		ReadBackoffMin: 5 * time.Millisecond,
+		ReadBackoffMax: 10 * time.Millisecond,
 		StartOffset: kafka.FirstOffset,
 	}
 	return kafka.NewReader(config)
@@ -96,9 +98,12 @@ func (merger *KafkaMerger) writeToMergedTopic(ctx context.Context,
 
 	go writeToMergedChan(ctx, chansMerger, outputChan, inputChans)
 
-	writer := &kafka.Writer{
+	writer := &kafka.Writer {
 		Addr:     kafka.TCP(merger.Brokers[0]),
 		Topic:    merger.MergedSourceTopic,
+		WriteBackoffMin: 1 * time.Millisecond,
+		WriteBackoffMax: 5 * time.Millisecond,
+		BatchTimeout:   1 * time.Millisecond,
 		Balancer: &kafka.LeastBytes{},
 	}
 
