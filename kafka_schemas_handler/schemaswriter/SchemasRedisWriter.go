@@ -87,8 +87,7 @@ func (srw *SchemasRedisWriter) SaveSchema(ctx context.Context, schema domain.Sch
 	}
 
 	msg := fmt.Sprintf("schema %s already exists in redis", schemaKey)
-	log.Println(msg)
-	return schemaKey, errors.New(msg)
+	return schemaKey, fmt.Errorf(msg) // todo are we going to unwrap this error?
 }
 
 func (srw *SchemasRedisWriter) DeleteSchema(ctx context.Context, subject string, version int) (string, error) {
@@ -98,8 +97,7 @@ func (srw *SchemasRedisWriter) DeleteSchema(ctx context.Context, subject string,
 
 	if srw.redis.Exists(ctx, schemaRedisKey).Val() == 0 {
 		msg := fmt.Sprintf("schema %s does not exist in redis", schemaRedisKey)
-		log.Println(msg)
-		return schemaKey, errors.New(msg)
+		return schemaKey, fmt.Errorf(msg) // todo are we going to unwrap this error?
 	}
 
 	fieldsRaw := srw.redis.Get(ctx, schemaRedisKey).Val()

@@ -93,7 +93,7 @@ func getSchemaFromSchemaMsg(schemaMsg SchemaMsg) (domain.Schema, error) {
 func (ksh *KafkaSchemasHandler) SaveSchema(ctx context.Context, msg SchemaMsg) (string, error) {
 	schema, err := getSchemaFromSchemaMsg(msg)
 	if err != nil {
-		log.Printf("[KafkaSchemasHandler] Error getting schema from schemaMsg: %v", err)
+		log.Printf("[KafkaSchemasHandler] Error getting schema from schemaMsg: %v", err) // fixme add context to error and don't print
 		return "", err
 	}
 	return ksh.schemasWriter.SaveSchema(ctx, schema)
