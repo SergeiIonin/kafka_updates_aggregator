@@ -5,6 +5,9 @@ import (
 	"fmt"
 )
 
+const FieldPrefix  string = "field."
+const SchemaPrefix string = "schema."
+
 type Schema struct {
 	subject string
 	version int
