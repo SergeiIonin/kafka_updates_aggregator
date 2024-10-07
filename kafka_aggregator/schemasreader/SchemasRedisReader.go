@@ -4,38 +4,28 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"fmt"
-	"github.com/redis/go-redis/v9"
+	"kafka_updates_aggregator/cache"
 	"kafka_updates_aggregator/domain"
+
+	"github.com/redis/go-redis/v9"
+
 	"log"
 )
 
 // SchemasRedisReader is used to read all schemas where the field is present
 type SchemasRedisReader struct {
 	redis        *redis.Client
-	fieldPrefix  string // "field."
-	schemaPrefix string // "schema."
 }
 
 func NewSchemasRedisReader(redisAddr string) *SchemasRedisReader {
 	redisClient := redis.NewClient(&redis.Options{
 		Addr: redisAddr,
 	})
-	fieldPrefix := "field."
-	schemaPrefix := "schema."
-	return &SchemasRedisReader{redis: redisClient, fieldPrefix: fieldPrefix, schemaPrefix: schemaPrefix}
-}
-
-func (srr *SchemasRedisReader) FieldPrefix() string {
-	return srr.fieldPrefix
-}
-
-func (srr *SchemasRedisReader) SchemaPrefix() string {
-	return srr.schemaPrefix
+	return &SchemasRedisReader{redis: redisClient}
 }
 
 func (srr *SchemasRedisReader) GetSchemasForKey(ctx context.Context, key string) ([]domain.Schema, error) {
-	fieldRedisKey := fmt.Sprintf("%s%s", srr.fieldPrefix, key)
+	fieldRedisKey := cache.GetFieldKey(key)
 
 	mapping, err := srr.redis.HGetAll(ctx, fieldRedisKey).Result()
 	if err != nil {

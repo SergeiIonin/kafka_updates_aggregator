@@ -9,6 +9,7 @@ import (
 	tc "github.com/testcontainers/testcontainers-go"
 	tcWait "github.com/testcontainers/testcontainers-go/wait"
 	"kafka_updates_aggregator/domain"
+	"kafka_updates_aggregator/cache"
 	"kafka_updates_aggregator/test"
 	"log"
 	"slices"
@@ -64,7 +65,7 @@ func TestSchemasRedisReader_test(t *testing.T) {
 		}
 	}(redisContainer, ctx, t)
 
-	sc0 := domain.CreateSchema("user_balance_updates", 1, 1, []domain.Field{{"user_id", "string"}, {"balance", "int"}, {"deposit", "int"}, {"withdrawal", "int"}},
+	sc0 := domain.CreateSchema("user_balance_updates", 1, 1, []domain.Field{{Name: "user_id", Type: "string"}, {Name: "balance", Type: "int"}, {Name: "deposit", Type: "int"}, {Name: "withdrawal", Type: "int"}},
 		`{
 						"type": "record",
 						"name": "user_balance_updates",
@@ -76,7 +77,7 @@ func TestSchemasRedisReader_test(t *testing.T) {
 							]
 					}`)
 
-	sc1 := domain.CreateSchema("user_login", 1, 1, []domain.Field{{"user_id", "string"}, {"balance", "int"}, {"time", "string"}},
+	sc1 := domain.CreateSchema("user_login", 1, 1, []domain.Field{{Name: "user_id", Type: "string"}, {Name: "balance", Type: "int"}, {Name: "time", Type: "string"}},
 		`{
 				"type": "record",
 				"name": "user_login",
@@ -89,9 +90,9 @@ func TestSchemasRedisReader_test(t *testing.T) {
 
 	cleanupRedis := func(schemas []domain.Schema) {
 		for _, schema := range schemas {
-			redisClient.Del(ctx, fmt.Sprintf("%s%s", schemasRedisReader.SchemaPrefix(), schema.Key()))
+			redisClient.Del(ctx, cache.GetSchemaKey(schema.Key()))
 			for _, field := range schema.Fields() {
-				redisClient.HDel(ctx, fmt.Sprintf("%s%s", schemasRedisReader.FieldPrefix(), field))
+				redisClient.HDel(ctx, cache.GetFieldKey(field.Name))
 			}
 		}
 	}
@@ -108,7 +109,7 @@ func TestSchemasRedisReader_test(t *testing.T) {
 
 	t.Run("Fetch one schema", func(t *testing.T) {
 		field := "user_id"
-		fieldRedisKey := fmt.Sprintf("%s%s", schemasRedisReader.FieldPrefix(), field)
+		fieldRedisKey := cache.GetFieldKey(field)
 		schemaRaw, _ := json.Marshal(sc0)
 
 		err := redisClient.HSet(ctx, fieldRedisKey, sc0.Key(), string(schemaRaw)).Err()
@@ -128,7 +129,7 @@ func TestSchemasRedisReader_test(t *testing.T) {
 
 	t.Run("Fetch multiple schemas", func(t *testing.T) {
 		field := "user_id"
-		fieldRedisKey := fmt.Sprintf("%s%s", schemasRedisReader.FieldPrefix(), field)
+		fieldRedisKey := cache.GetFieldKey(field)
 
 		schema0Raw, _ := json.Marshal(sc0)
 		err := redisClient.HSet(ctx, fieldRedisKey, sc0.Key(), string(schema0Raw)).Err()
