@@ -7,52 +7,29 @@ import (
 	"fmt"
 	"github.com/redis/go-redis/v9"
 	"kafka_updates_aggregator/domain"
+	"kafka_updates_aggregator/cache"
+
 	"log"
 )
 
 type SchemasRedisWriter struct {
 	redis        *redis.Client
-	fieldPrefix  string
-	schemaPrefix string
 }
 
 func NewSchemasRedisWriter(redisAddr string) *SchemasRedisWriter {
 	redisClient := redis.NewClient(&redis.Options{
 		Addr: redisAddr,
 	})
-	fieldPrefix := "field."
-	schemaPrefix := "schema."
-	return &SchemasRedisWriter{redis: redisClient, fieldPrefix: fieldPrefix, schemaPrefix: schemaPrefix}
-}
-
-func (srr *SchemasRedisWriter) FieldPrefix() string {
-	return srr.fieldPrefix
-}
-
-func (srr *SchemasRedisWriter) SchemaPrefix() string {
-	return srr.schemaPrefix
-}
-
-func readSchemas(rawSchemas []byte) ([]domain.Schema, error) {
-	if len(rawSchemas) == 0 {
-		return []domain.Schema{}, nil
-	}
-	var schemas []domain.Schema
-	err := json.Unmarshal(rawSchemas, &schemas)
-	if err != nil {
-		log.Printf("error unmarshalling schemas from redis: %v", err)
-		return nil, err
-	}
-	return schemas, nil
+	return &SchemasRedisWriter{redis: redisClient}
 }
 
 func (srw *SchemasRedisWriter) containsSchema(schema domain.Schema) bool {
-	key := fmt.Sprintf("%s%s", srw.schemaPrefix, schema.Key())
+	key := cache.GetSchemaKey(schema.Key())
 	return srw.redis.Exists(context.Background(), key).Val() == 1
 }
 
 func (srw *SchemasRedisWriter) addSchemaKey(schema domain.Schema) error {
-	schemaRedisKey := fmt.Sprintf("%s%s", srw.schemaPrefix, schema.Key())
+	schemaRedisKey := cache.GetSchemaKey(schema.Key())
 	fieldsKeys := make([]string, 0, len(schema.Fields()))
 	for _, field := range schema.Fields() {
 		fieldsKeys = append(fieldsKeys, field.Name)
@@ -70,7 +47,7 @@ func (srw *SchemasRedisWriter) addSchemaKey(schema domain.Schema) error {
 }
 
 func (srw *SchemasRedisWriter) addSchemaForField(ctx context.Context, schema domain.Schema, field domain.Field) error {
-	fieldRedisKey := fmt.Sprintf("%s%s", srw.fieldPrefix, field.Name)
+	fieldRedisKey := cache.GetFieldKey(field.Name)
 
 	schemaRaw, err := json.Marshal(&schema)
 	if err != nil {
@@ -116,7 +93,7 @@ func (srw *SchemasRedisWriter) SaveSchema(ctx context.Context, schema domain.Sch
 
 func (srw *SchemasRedisWriter) DeleteSchema(ctx context.Context, subject string, version int) (string, error) {
 	schemaKey := fmt.Sprintf("%s.%d", subject, version)
-	schemaRedisKey := fmt.Sprintf("%s%s", srw.schemaPrefix, schemaKey)
+	schemaRedisKey := cache.GetSchemaKey(schemaKey)
 	log.Printf("deleting schema %v", schemaKey)
 
 	if srw.redis.Exists(ctx, schemaRedisKey).Val() == 0 {
@@ -135,7 +112,7 @@ func (srw *SchemasRedisWriter) DeleteSchema(ctx context.Context, subject string,
 
 	errorsAll := make([]error, 0, len(fields))
 	for _, field := range fields {
-		fieldRedisKey := fmt.Sprintf("%s%s", srw.fieldPrefix, field)
+		fieldRedisKey := cache.GetFieldKey(field)
 
 		err = srw.redis.HDel(ctx, fieldRedisKey, schemaKey).Err()
 		if err != nil {

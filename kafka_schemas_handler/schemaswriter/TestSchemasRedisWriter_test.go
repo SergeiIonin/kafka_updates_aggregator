@@ -4,16 +4,18 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/redis/go-redis/v9"
-	"github.com/stretchr/testify/assert"
-	tc "github.com/testcontainers/testcontainers-go"
-	tcWait "github.com/testcontainers/testcontainers-go/wait"
+	"kafka_updates_aggregator/cache"
 	"kafka_updates_aggregator/domain"
 	"kafka_updates_aggregator/test"
 	"log"
 	"slices"
 	"testing"
 	"time"
+
+	"github.com/redis/go-redis/v9"
+	"github.com/stretchr/testify/assert"
+	tc "github.com/testcontainers/testcontainers-go"
+	tcWait "github.com/testcontainers/testcontainers-go/wait"
 )
 
 var (
@@ -89,9 +91,9 @@ func TestSchemasRedisWriter_test(t *testing.T) {
 
 	cleanupRedis := func(schemas []domain.Schema) {
 		for _, schema := range schemas {
-			redisClient.Del(ctx, fmt.Sprintf("%s%s", schemasRedisWriter.SchemaPrefix(), schema.Key()))
+			redisClient.Del(ctx, cache.GetSchemaKey(schema.Key()))
 			for _, field := range schema.Fields() {
-				redisClient.HDel(ctx, fmt.Sprintf("%s%s", schemasRedisWriter.FieldPrefix(), field))
+				redisClient.HDel(ctx, cache.GetFieldKey(field.Name))
 			}
 		}
 	}
