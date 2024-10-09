@@ -1,4 +1,4 @@
-### Kafka Updates Aggregator
+### Kafka Updates Aggregator v.0.0.1
 
 A project to aggregate updates happening in `Kafka` across different topics into new user defined topics.
 
