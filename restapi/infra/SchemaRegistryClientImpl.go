@@ -1,9 +1,10 @@
 package infra
 
 import (
-	"github.com/riferrei/srclient"
 	"kafka_updates_aggregator/restapi/domain"
 	"log"
+
+	"github.com/riferrei/srclient"
 )
 
 type SchemaRegistryClientImpl struct {

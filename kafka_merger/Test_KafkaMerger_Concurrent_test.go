@@ -3,8 +3,6 @@ package kafka_merger
 import (
 	"context"
 	"fmt"
-	"github.com/docker/docker/client"
-	"github.com/segmentio/kafka-go"
 	test "kafka_updates_aggregator/test"
 	"log"
 	"slices"
@@ -12,6 +10,9 @@ import (
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/docker/docker/client"
+	"github.com/segmentio/kafka-go"
 )
 
 var (
@@ -56,8 +57,8 @@ func init() {
 	}
 
 	if _, err = kafka_client.CreateTopics(context.Background(), &kafka.CreateTopicsRequest{
-		Addr: kafkaAddr,
-		Topics: topicConfigs,
+		Addr:         kafkaAddr,
+		Topics:       topicConfigs,
 		ValidateOnly: false,
 	},
 	); err != nil {
@@ -68,7 +69,7 @@ func init() {
 // todo add test_containers support and ensure test_kafka_aggregator topics exist and have messages before the test_kafka_aggregator runs
 // should pass in 30s
 func Test_KafkaMerger_Concurrent_test(t *testing.T) {
-	
+
 	cleanup := func() {
 		test.CleanupAndGracefulShutdown(t, dockerClient, containerId)
 	}
@@ -91,10 +92,10 @@ func Test_KafkaMerger_Concurrent_test(t *testing.T) {
 
 	testReader := test.KafkaTestReader{
 		Reader: kafka.NewReader(kafka.ReaderConfig{
-			Brokers:  []string{kafkaBroker},
-			Topic:    mergedSourceTopic,
-			MinBytes: 1e3, // 1KB
-			MaxBytes: 10e6, // 10MB
+			Brokers:        []string{kafkaBroker},
+			Topic:          mergedSourceTopic,
+			MinBytes:       1e3,  // 1KB
+			MaxBytes:       10e6, // 10MB
 			ReadBackoffMin: 5 * time.Millisecond,
 			ReadBackoffMax: 10 * time.Millisecond,
 		}),
@@ -103,7 +104,7 @@ func Test_KafkaMerger_Concurrent_test(t *testing.T) {
 	go merger.Run(context.Background())
 
 	go writeTestMessagesWithInterleaving(&testWriter)
-	
+
 	numMsgsTotal := msgsPerTopic * numTopics
 	count := 0
 	messages, err := testReader.ReadPlain(numMsgsTotal, &count)
@@ -159,12 +160,12 @@ func writeTestMessagesWithInterleaving(writer *test.KafkaTestWriter) {
 	wg.Add(len(topics))
 
 	for _, topic := range topics {
-		topicWriter := kafka.Writer {
-			Addr:     kafkaAddr,
+		topicWriter := kafka.Writer{
+			Addr:            kafkaAddr,
 			WriteBackoffMin: 1 * time.Millisecond,
 			WriteBackoffMax: 5 * time.Millisecond,
-			BatchTimeout:   1 * time.Millisecond,
-			Balancer: &kafka.LeastBytes{},
+			BatchTimeout:    1 * time.Millisecond,
+			Balancer:        &kafka.LeastBytes{},
 		}
 		go func(topic string) {
 			defer func() {

@@ -3,13 +3,14 @@ package containers
 import (
 	"context"
 	"fmt"
-	"github.com/docker/docker/client"
-	"github.com/segmentio/kafka-go"
-	"github.com/stretchr/testify/assert"
 	"kafka_updates_aggregator/test"
 	"log"
 	"testing"
 	"time"
+
+	"github.com/docker/docker/client"
+	"github.com/segmentio/kafka-go"
+	"github.com/stretchr/testify/assert"
 )
 
 var (
@@ -107,8 +108,8 @@ func init() {
 
 	go runTask(initKafka)
 	go runTask(initRedis)
-	
-    timer := time.NewTimer(startTimeout)
+
+	timer := time.NewTimer(startTimeout)
 
 	for {
 		timer.Reset(startTimeout)
@@ -121,7 +122,7 @@ func init() {
 			continue
 		case e := <-errorsChan:
 			panic(fmt.Sprintf("Kafka and Redis haven't initialized due to error %v", e))
-		case <- timer.C:
+		case <-timer.C:
 			panic(fmt.Sprintf("Kafka and Redis haven't initialized within %v", startTimeout))
 		}
 		break

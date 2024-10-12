@@ -3,12 +3,12 @@ package main
 import (
 	"fmt"
 	"kafka_updates_aggregator/configs"
+	restapiconfig "kafka_updates_aggregator/configs/restapi"
 	"kafka_updates_aggregator/restapi"
 	"kafka_updates_aggregator/restapi/application"
 	"log"
 	"net/http"
 	"os"
-	restapiconfig "kafka_updates_aggregator/configs/restapi"
 
 	"github.com/gin-gonic/gin"
 	"gopkg.in/yaml.v3"
@@ -35,7 +35,7 @@ func init() {
 	if err != nil {
 		log.Fatalf("Error creating restapi_config: %v", err)
 	}
-	
+
 	configFile, err = os.ReadFile(configPath)
 	if err != nil {
 		log.Fatalf("Error reading restapi config file: %v", err)
@@ -65,8 +65,8 @@ func main() {
 	router.POST("/create", rc.CreateSchema)
 	router.GET("/schemas", rc.GetSchemas)
 
-    err = router.Run(address)
-    if err != nil {
-        panic(err)
-    }
+	err = router.Run(address)
+	if err != nil {
+		panic(err)
+	}
 }

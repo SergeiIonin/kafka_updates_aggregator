@@ -1,9 +1,10 @@
 package application
 
 import (
-	"github.com/riferrei/srclient"
 	"kafka_updates_aggregator/restapi/domain"
 	"kafka_updates_aggregator/restapi/infra"
+
+	"github.com/riferrei/srclient"
 )
 
 type SchemaAggregationService struct {

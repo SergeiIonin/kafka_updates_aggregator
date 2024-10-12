@@ -1,16 +1,17 @@
 package kafka_aggregator
 
 import (
-    "context"
-    "encoding/json"
-    "github.com/docker/docker/client"
-    "github.com/segmentio/kafka-go"
-    "github.com/stretchr/testify/assert"
-    "kafka_updates_aggregator/domain"
-    "kafka_updates_aggregator/test"
-    testaggregator "kafka_updates_aggregator/test/kafka_aggregator"
-    "log"
-    "testing"
+	"context"
+	"encoding/json"
+	"kafka_updates_aggregator/domain"
+	"kafka_updates_aggregator/test"
+	testaggregator "kafka_updates_aggregator/test/kafka_aggregator"
+	"log"
+	"testing"
+
+	"github.com/docker/docker/client"
+	"github.com/segmentio/kafka-go"
+	"github.com/stretchr/testify/assert"
 )
 
 var (
@@ -54,8 +55,8 @@ func init() {
 	}
 
 	if _, err = kafkaClient.CreateTopics(context.Background(), &kafka.CreateTopicsRequest{
-		Addr: kafkaAddr,
-		Topics: topicConfigs,
+		Addr:         kafkaAddr,
+		Topics:       topicConfigs,
 		ValidateOnly: false,
 	},
 	); err != nil {

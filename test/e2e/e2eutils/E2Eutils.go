@@ -5,15 +5,17 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/redis/go-redis/v9"
-	"github.com/segmentio/kafka-go"
 	kafkaschemashandler "kafka_updates_aggregator/kafka_schemas_handler"
 	"log"
 	"net"
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/redis/go-redis/v9"
+	"github.com/segmentio/kafka-go"
 )
+
 // todo consider splitting the package into multiple packages of cohesive files, e.g. testreader, testwriter, testdata etc
 type MessageWithTopic interface {
 	Topic() string

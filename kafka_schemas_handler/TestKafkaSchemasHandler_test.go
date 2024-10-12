@@ -3,14 +3,15 @@ package kafka_schemas_handler
 import (
 	"context"
 	"fmt"
-	"github.com/docker/docker/client"
-	"github.com/segmentio/kafka-go"
 	"kafka_updates_aggregator/test"
 	testkafkaschemashandler "kafka_updates_aggregator/test/kafka_schemas_handler"
 	"log"
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/docker/docker/client"
+	"github.com/segmentio/kafka-go"
 )
 
 var (

@@ -3,9 +3,10 @@ package kafka_schemas_handler
 import (
 	"context"
 	"encoding/json"
-	"github.com/segmentio/kafka-go"
 	"kafka_updates_aggregator/domain"
 	"log"
+
+	"github.com/segmentio/kafka-go"
 )
 
 type KafkaSchemasHandler struct {

@@ -4,17 +4,18 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/redis/go-redis/v9"
-	"github.com/stretchr/testify/assert"
-	tc "github.com/testcontainers/testcontainers-go"
-	tcWait "github.com/testcontainers/testcontainers-go/wait"
-	"kafka_updates_aggregator/domain"
 	"kafka_updates_aggregator/cache"
+	"kafka_updates_aggregator/domain"
 	"kafka_updates_aggregator/test"
 	"log"
 	"slices"
 	"testing"
 	"time"
+
+	"github.com/redis/go-redis/v9"
+	"github.com/stretchr/testify/assert"
+	tc "github.com/testcontainers/testcontainers-go"
+	tcWait "github.com/testcontainers/testcontainers-go/wait"
 )
 
 var (

@@ -2,10 +2,11 @@ package restapi
 
 import (
 	"fmt"
-	"github.com/gin-gonic/gin"
 	"kafka_updates_aggregator/restapi/application"
 	"kafka_updates_aggregator/restapi/infra"
 	"net/http"
+
+	"github.com/gin-gonic/gin"
 )
 
 type RestController struct {

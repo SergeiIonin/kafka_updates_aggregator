@@ -6,8 +6,8 @@ import (
 	configs "kafka_updates_aggregator/configs"
 	aggregatorConfig "kafka_updates_aggregator/configs/kafka_aggregator"
 	kafkaaggregator "kafka_updates_aggregator/kafka_aggregator"
-	schemasreader "kafka_updates_aggregator/kafka_aggregator/schemasreader"
 	fieldscache "kafka_updates_aggregator/kafka_aggregator/fieldscache"
+	schemasreader "kafka_updates_aggregator/kafka_aggregator/schemasreader"
 	"log"
 	"os"
 
@@ -34,7 +34,7 @@ func init() {
 	if err != nil {
 		log.Fatalf("Error creating aggregator_config: %v", err)
 	}
-	
+
 	configFile, err = os.ReadFile(configPath)
 	if err != nil {
 		log.Fatalf("Error reading kafka_aggregator config file: %v", err)

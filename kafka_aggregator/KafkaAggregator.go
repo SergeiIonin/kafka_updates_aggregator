@@ -5,11 +5,12 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/segmentio/kafka-go"
 	"kafka_updates_aggregator/domain"
 	"log"
 	"strconv"
 	"time"
+
+	"github.com/segmentio/kafka-go"
 )
 
 type KafkaAggregator struct {
@@ -28,6 +29,12 @@ func NewKafkaAggregator(kafkaBroker string, mergedSourcesTopic string, schemasRe
 		MaxBytes: 10e6, // 10MB
 	})
 
+	/*
+		todo consider tuning values for
+			WriteBackoffMin,
+			WriteBackoffMax,
+			BatchTimeout
+	*/
 	writer := &kafka.Writer{
 		Addr:     kafka.TCP(kafkaBroker),
 		Balancer: &kafka.LeastBytes{},
@@ -155,7 +162,7 @@ func (ka *KafkaAggregator) composeMessageForSchema(ctx context.Context, id strin
 			panic(err)
 		}
 		if value == "" {
-			return kafka.Message{}, errors.New("no value")
+			return kafka.Message{}, fmt.Errorf("no value")
 		}
 		valueTyped, err := getFieldTypedValue(field, value)
 		if err != nil {
@@ -223,7 +230,7 @@ func (ka *KafkaAggregator) WriteAggregate(ctx context.Context, id string, m kafk
 	for _, schema := range schemaMap {
 		var msg kafka.Message
 		msg, err := ka.composeMessageForSchema(ctx, id, schema)
-		if errors.Is(err, errors.New("no value")) {
+		if errors.Is(err, fmt.Errorf("no value")) {
 			continue
 		}
 		err = ka.writer.WriteMessages(ctx, msg)

@@ -39,11 +39,11 @@ func valuesFromYamlFile(valuesFile string) (map[string]interface{}, error) {
 		return nil, errors.Wrap(err, "opening data file")
 	}
 	defer func(data *os.File) {
-        err := data.Close()
-        if err != nil {
-            log.Printf("Error closing config: %v", err)
-        }
-    }(data)
+		err := data.Close()
+		if err != nil {
+			log.Printf("Error closing config: %v", err)
+		}
+	}(data)
 
 	s, err := ioReadAll(data)
 	if err != nil {

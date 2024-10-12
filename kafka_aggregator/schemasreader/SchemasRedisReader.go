@@ -14,7 +14,7 @@ import (
 
 // SchemasRedisReader is used to read all schemas where the field is present
 type SchemasRedisReader struct {
-	redis        *redis.Client
+	redis *redis.Client
 }
 
 func NewSchemasRedisReader(redisAddr string) *SchemasRedisReader {

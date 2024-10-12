@@ -2,12 +2,13 @@ package test
 
 import (
 	"context"
+	"log"
+	"time"
+
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/client"
 	"github.com/docker/go-connections/nat"
 	"github.com/redis/go-redis/v9"
-	"log"
-	"time"
 )
 
 func waitRedisIsUp() error {

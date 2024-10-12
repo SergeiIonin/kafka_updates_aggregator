@@ -3,13 +3,14 @@ package fieldscache
 import (
 	"context"
 	"fmt"
-	"github.com/stretchr/testify/assert"
-	tc "github.com/testcontainers/testcontainers-go"
-	tcWait "github.com/testcontainers/testcontainers-go/wait"
 	"kafka_updates_aggregator/test"
 	"log"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/assert"
+	tc "github.com/testcontainers/testcontainers-go"
+	tcWait "github.com/testcontainers/testcontainers-go/wait"
 )
 
 var (

@@ -1,25 +1,26 @@
 package e2e
 
 import (
-    "context"
-    "encoding/json"
-    "fmt"
-    "github.com/docker/docker/client"
-    "github.com/redis/go-redis/v9"
-    "github.com/segmentio/kafka-go"
-    "github.com/stretchr/testify/assert"
-    "kafka_updates_aggregator/kafka_aggregator"
-    "kafka_updates_aggregator/kafka_aggregator/fieldscache"
-    "kafka_updates_aggregator/kafka_aggregator/schemasreader"
-    "kafka_updates_aggregator/kafka_merger"
-    kafkaschemashandler "kafka_updates_aggregator/kafka_schemas_handler"
-    "kafka_updates_aggregator/kafka_schemas_handler/schemaswriter"
-    "kafka_updates_aggregator/test"
-    "kafka_updates_aggregator/test/e2e/e2eutils"
-    "log"
-    "slices"
-    "testing"
-    "time"
+	"context"
+	"encoding/json"
+	"fmt"
+	"kafka_updates_aggregator/kafka_aggregator"
+	"kafka_updates_aggregator/kafka_aggregator/fieldscache"
+	"kafka_updates_aggregator/kafka_aggregator/schemasreader"
+	"kafka_updates_aggregator/kafka_merger"
+	kafkaschemashandler "kafka_updates_aggregator/kafka_schemas_handler"
+	"kafka_updates_aggregator/kafka_schemas_handler/schemaswriter"
+	"kafka_updates_aggregator/test"
+	"kafka_updates_aggregator/test/e2e/e2eutils"
+	"log"
+	"slices"
+	"testing"
+	"time"
+
+	"github.com/docker/docker/client"
+	"github.com/redis/go-redis/v9"
+	"github.com/segmentio/kafka-go"
+	"github.com/stretchr/testify/assert"
 )
 
 var (
@@ -127,10 +128,10 @@ func init() {
 	go runTask(initKafka)
 	go runTask(initRedis)
 
-    timer := time.NewTimer(startTimeout)  
-    
+	timer := time.NewTimer(startTimeout)
+
 	for {
-        timer.Reset(startTimeout) 
+		timer.Reset(startTimeout)
 		select {
 		case id := <-chanContainerIds:
 			ids = append(ids, id)
@@ -140,7 +141,7 @@ func init() {
 			continue
 		case e := <-errorsChan:
 			panic(fmt.Sprintf("Kafka and Redis haven't initialized due to error %v", e))
-		case <- timer.C:
+		case <-timer.C:
 			panic(fmt.Sprintf("Kafka and Redis haven't initialized within %v", startTimeout))
 		}
 		break

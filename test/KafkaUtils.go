@@ -2,15 +2,16 @@ package test
 
 import (
 	"context"
-	"github.com/docker/docker/api/types/container"
-	"github.com/docker/docker/client"
-	"github.com/docker/go-connections/nat"
-	"github.com/segmentio/kafka-go"
 	"log"
 	"strconv"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/client"
+	"github.com/docker/go-connections/nat"
+	"github.com/segmentio/kafka-go"
 )
 
 var (
@@ -56,20 +57,20 @@ func CleanupAndGracefulShutdown(t *testing.T, dockerClient *client.Client, conta
 
 func GracefulShutdown(dockerClient *client.Client, containerId string) error {
 	log.Printf("Removing container %s \n", containerId)
-    inspection, err := dockerClient.ContainerInspect(context.Background(), containerId)
-    if err != nil {
-        log.Printf("could not inspect container %v, consider deleting it manually!", err)
+	inspection, err := dockerClient.ContainerInspect(context.Background(), containerId)
+	if err != nil {
+		log.Printf("could not inspect container %v, consider deleting it manually!", err)
 		return err
-    }
+	}
 
-    if !inspection.State.Running {
+	if !inspection.State.Running {
 		return nil
-    }
+	}
 
-    if err = dockerClient.ContainerRemove(context.Background(), containerId, container.RemoveOptions{Force: true}); err != nil {
-        log.Printf("could not remove container %v, consider deleting it manually!", err)
+	if err = dockerClient.ContainerRemove(context.Background(), containerId, container.RemoveOptions{Force: true}); err != nil {
+		log.Printf("could not remove container %v, consider deleting it manually!", err)
 		return err
-    }
+	}
 	return nil
 }
 

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/client"
 	tc "github.com/testcontainers/testcontainers-go"

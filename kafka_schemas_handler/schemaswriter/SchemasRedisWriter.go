@@ -5,15 +5,16 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/redis/go-redis/v9"
-	"kafka_updates_aggregator/domain"
 	"kafka_updates_aggregator/cache"
+	"kafka_updates_aggregator/domain"
+
+	"github.com/redis/go-redis/v9"
 
 	"log"
 )
 
 type SchemasRedisWriter struct {
-	redis        *redis.Client
+	redis *redis.Client
 }
 
 func NewSchemasRedisWriter(redisAddr string) *SchemasRedisWriter {

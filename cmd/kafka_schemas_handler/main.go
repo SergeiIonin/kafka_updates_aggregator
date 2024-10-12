@@ -4,12 +4,13 @@ import (
 	"context"
 	"fmt"
 	"kafka_updates_aggregator/configs"
-	kafkaSchemasHandler "kafka_updates_aggregator/kafka_schemas_handler"
 	schemasHandlerConfig "kafka_updates_aggregator/configs/kafka_schemas_handler"
+	kafkaSchemasHandler "kafka_updates_aggregator/kafka_schemas_handler"
 
 	schemaswriter "kafka_updates_aggregator/kafka_schemas_handler/schemaswriter"
 	"log"
 	"os"
+
 	"gopkg.in/yaml.v3"
 )
 

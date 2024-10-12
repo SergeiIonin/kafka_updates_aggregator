@@ -3,10 +3,11 @@ package kafka_merger
 import (
 	"container/heap"
 	"context"
-	"github.com/segmentio/kafka-go"
 	"log"
 	"sync"
 	"time"
+
+	"github.com/segmentio/kafka-go"
 )
 
 type ChannelsMerger struct {
@@ -43,7 +44,7 @@ func (m *ChannelsMerger) Merge(ctx context.Context, output chan<- kafka.Message,
 	}()
 
 	timerDuration := 15 * time.Millisecond // in theory this value is capped by the ReadBackoffMax of consumer (reader), if it's much smaller than that, we may waste some cycles
-    timer := time.NewTimer(timerDuration)
+	timer := time.NewTimer(timerDuration)
 
 	for {
 		if len(pq) == 0 {
@@ -51,7 +52,7 @@ func (m *ChannelsMerger) Merge(ctx context.Context, output chan<- kafka.Message,
 		}
 		timer.Reset(timerDuration)
 		select {
-		case <-ctx.Done(): 
+		case <-ctx.Done():
 			log.Printf("[ChannelsMerger] Merging is canceled") // fixme rm
 			return context.Canceled
 		case <-timer.C: // fixme use timer and reset it instead, otherwise is not memory-efficient
