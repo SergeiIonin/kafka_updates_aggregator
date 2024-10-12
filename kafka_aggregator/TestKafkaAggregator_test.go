@@ -92,7 +92,7 @@ func TestKafkaAggregator_test(t *testing.T) {
 
 	schema := domain.CreateSchema("user_balance_updates", 1,
 		1,
-		[]domain.Field{{"user_id", "string"}, {"balance", "int"}, {"deposit", "int"}, {"withdrawal", "int"}},
+		[]domain.Field{{Name: "user_id", Type: "string"}, {Name: "balance", Type: "int"}, {Name: "deposit", Type: "int"}, {Name: "withdrawal", Type: "int"}},
 		schemaRaw)
 
 	userId := "bob"
@@ -101,10 +101,10 @@ func TestKafkaAggregator_test(t *testing.T) {
 	schemasWriter.AddSchemaToField("deposit", *schema)
 	schemasWriter.AddSchemaToField("withdrawal", *schema)
 
-	cache.Add(userId, "user_id", "bob")
-	cache.Add(userId, "balance", 1000)
-	cache.Add(userId, "deposit", 500)
-	cache.Add(userId, "withdrawal", 200)
+	_ = cache.Add(userId, "user_id", "bob")
+	_ = cache.Add(userId, "balance", 1000)
+	_ = cache.Add(userId, "deposit", 500)
+	_ = cache.Add(userId, "withdrawal", 200)
 
 	payload := []byte(`{"balance": 1200, "deposit": 700, "isAuthenticated": true, "country": "Cordovia"}`)
 

@@ -30,7 +30,7 @@ func (srv *SchemaAggregationService) GetAggregationSchemas() ([]infra.SchemaRawD
 	schemasWithSubject, err := srv.schemaManager.GetSchemas()
 	schemasWithSubjectDTO := make([]infra.SchemaRawDTO, 0, len(schemasWithSubject))
 	for _, schemaWithSubject := range schemasWithSubject {
-		schemasWithSubjectDTO = append(schemasWithSubjectDTO, infra.SchemaRawDTO{schemaWithSubject})
+		schemasWithSubjectDTO = append(schemasWithSubjectDTO, infra.SchemaRawDTO{SchemaRawWithSubject: schemaWithSubject})
 	}
 	return schemasWithSubjectDTO, err
 }

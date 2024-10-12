@@ -55,9 +55,9 @@ func init() {
 	}
 
 	if _, err = kafkaClient.CreateTopics(context.Background(), &kafka.CreateTopicsRequest{
-		kafkaAddr,
-		topicConfigs,
-		false,
+		Addr: kafkaAddr,
+		Topics: topicConfigs,
+		ValidateOnly: false,
 	},
 	); err != nil {
 		log.Fatalf("could not create topics %v", err)
@@ -158,13 +158,13 @@ func TestKafkaAggregator_test(t *testing.T) {
 		schemaDeletedChan := make(chan bool)
 		ensureSchemaDeleted := func() {
 			for {
-				if schemas, _ := schemasWriter.Underlying["firstName"]; len(schemas) != 0 {
+				if schemas := schemasWriter.Underlying["firstName"]; len(schemas) != 0 {
 					time.Sleep(50 * time.Millisecond)
 					continue
 				}
-				scFirstName, _ := schemasWriter.Underlying["firstName"]
-				scLastName, _ := schemasWriter.Underlying["lastName"]
-				scAge, _ := schemasWriter.Underlying["age"]
+				scFirstName := schemasWriter.Underlying["firstName"]
+				scLastName := schemasWriter.Underlying["lastName"]
+				scAge := schemasWriter.Underlying["age"]
 				if len(scFirstName) != 0 || len(scLastName) != 0 || len(scAge) != 0 {
 					t.Fatalf("Schema %s is not deleted", schemaID)
 				}

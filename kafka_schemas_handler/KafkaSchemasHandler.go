@@ -86,7 +86,7 @@ func getSchemaFromSchemaMsg(schemaMsg SchemaMsg) (domain.Schema, error) {
 	}
 	fields := make([]domain.Field, 0, len(schemaInternal.Fields))
 	for _, f := range schemaInternal.Fields {
-		fields = append(fields, domain.Field{f.Name, f.Type})
+		fields = append(fields, domain.Field{Name: f.Name, Type: f.Type})
 	}
 	return *domain.CreateSchema(schemaMsg.Subject, schemaMsg.Version, schemaMsg.ID, fields, schemaMsg.Schema), nil
 }

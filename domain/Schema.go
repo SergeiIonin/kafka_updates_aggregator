@@ -86,5 +86,6 @@ func (s *Schema) UnmarshalJSON(data []byte) error {
 	s.id = aux.ID
 	s.fields = aux.Fields
 	s.schema = aux.Schema
+
 	return nil
 }

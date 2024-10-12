@@ -54,6 +54,7 @@ func valuesFromYamlFile(valuesFile string) (map[string]interface{}, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, "unmarshalling yaml file")
 	}
+	
 	return values, nil
 }
 
@@ -75,6 +76,7 @@ func parse(templateFile, valuesFile, outputFile string) error {
 	if err != nil {
 		return errors.Wrap(err, "executing template file")
 	}
+
 	return nil
 }
 

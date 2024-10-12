@@ -30,11 +30,11 @@ func (kt *KeyTypes) GetKeytype(key []byte) (string, error) {
 	}
 	keytypeRaw := decoded["keytype"]
 	var keytype string
-	switch keytypeRaw.(type) {
+	switch value := keytypeRaw.(type) {
 	case string:
-		keytype = keytypeRaw.(string)
+		keytype = value
 	default:
-		err := fmt.Errorf("Decoded keytype is not a string")
+		err := fmt.Errorf("decoded keytype is not a string")
 		return "", err
 	}
 	if !slices.Contains(kt.allTypes, keytype) {

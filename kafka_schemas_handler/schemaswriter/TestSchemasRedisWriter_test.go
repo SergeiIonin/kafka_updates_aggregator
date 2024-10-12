@@ -66,7 +66,7 @@ func TestSchemasRedisWriter_test(t *testing.T) {
 		}
 	}(ctx, redisContainer, t)
 
-	sc0 := domain.CreateSchema("user_balance_updates", 1, 1, []domain.Field{{"user_id", "string"}, {"balance", "int"}, {"deposit", "int"}, {"withdrawal", "int"}},
+	sc0 := domain.CreateSchema("user_balance_updates", 1, 1, []domain.Field{{Name: "user_id", Type: "string"}, {Name: "balance", Type: "int"}, {Name: "deposit", Type: "int"}, {Name: "withdrawal", Type: "int"}},
 		`{
 						"type": "record",
 						"name": "user_balance_updates",

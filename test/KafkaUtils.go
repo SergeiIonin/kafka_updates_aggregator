@@ -17,13 +17,6 @@ import (
 var (
 	kafkaBroker       = "localhost:9092"
 	kafkaAddr         = kafka.TCP(kafkaBroker)
-	topics            = []string{"test_1", "test_2", "test_3"}
-	mergedSourceTopic = "test_merged"
-	msgsPerTopic      = 15
-	numTopics         = len(topics)
-	kafka_client      *kafka.Client
-	containerId       string
-	dockerClient      *client.Client
 )
 
 // This is not an actual offsets from the merged data topic, but the offsets from the original topics, which is

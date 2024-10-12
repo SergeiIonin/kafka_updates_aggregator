@@ -17,7 +17,7 @@ func (ktr *KafkaTestReader) Read(expected int, count *int) ([]kafka.Message, err
 	log.Printf("[KafkaTestReader] reading messages")
 	messages := make([]kafka.Message, 0, expected)
 
-	ctx, cancel := context.WithTimeout(context.Background(), 240*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 240*time.Second) // fixme lostcancel: the cancel function is not used on all paths (possible context leak)
 
 	for {
 		select {

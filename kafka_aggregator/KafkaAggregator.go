@@ -107,19 +107,6 @@ func (ka *KafkaAggregator) toMap(data []byte) map[string]any {
 	return result
 }
 
-func (ka *KafkaAggregator) getSchemaFields(schema domain.Schema) (fields []string, err error) {
-	res := make(map[string]any)
-	err = json.Unmarshal([]byte(schema.Schema()), &res)
-	if err != nil {
-		return []string{}, fmt.Errorf("[KafkaAggregator] could not unmarshal schema %v", err)
-	}
-	fields = make([]string, 0, len(res))
-	for k, _ := range res {
-		fields = append(fields, k)
-	}
-	return fields, nil
-}
-
 func parseFloat32(value string) (float32, error) {
 	f, err := strconv.ParseFloat(value, 32)
 	if err != nil {

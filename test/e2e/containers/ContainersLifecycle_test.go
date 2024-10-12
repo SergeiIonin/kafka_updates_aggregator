@@ -24,7 +24,6 @@ var (
 
 	schemasTopic = "_schemas"
 
-	redisAddr        string
 	redisContainerId string
 
 	dockerClient *client.Client
@@ -32,7 +31,7 @@ var (
 )
 
 func initDocker() {
-	var err error = nil
+	var err error
 	dockerClient, err = client.NewClientWithOpts(client.WithVersion("1.45"))
 	if err != nil {
 		log.Printf("error creating docker client: %s", err.Error())
@@ -67,9 +66,9 @@ func initKafka() (string, error) {
 	}
 
 	if _, err = kafkaClient.CreateTopics(context.Background(), &kafka.CreateTopicsRequest{
-		kafkaAddr,
-		topicConfigs,
-		false,
+		Addr: kafkaAddr,
+		Topics: topicConfigs,
+		ValidateOnly: false,
 	},
 	); err != nil {
 		log.Fatalf("could not create topics %v", err)
