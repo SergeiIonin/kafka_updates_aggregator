@@ -175,7 +175,6 @@ func InitSchemas(t *testing.T, kafkaAddr net.Addr, schemasTopic string, schemas 
 func toKafkaMsg(idKey string, idValue string, msg MessageWithTopic) (kafka.Message, error) {
 	id := fmt.Sprintf("{\"%s\":\"%s\"}", idKey, idValue)
 	var kafkaMsg kafka.Message
-	payload := make([]byte, 0, 10)
 	payload, err := json.Marshal(msg)
 	if err != nil {
 		return kafka.Message{}, err

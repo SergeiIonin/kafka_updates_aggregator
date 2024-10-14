@@ -31,7 +31,6 @@ func (c *SchemaRegistryClientImpl) GetSchemas() ([]domain.SchemaRawWithSubject, 
 		log.Printf("Error getting subjects: %v", err)
 		return nil, err
 	}
-	latestSchemas := make([]string, 0, len(subjects))
 	schemasWithSubjects := make([]domain.SchemaRawWithSubject, 0, len(subjects))
 	for _, subject := range subjects {
 		schema, err := c.client.GetLatestSchema(subject)
@@ -39,7 +38,6 @@ func (c *SchemaRegistryClientImpl) GetSchemas() ([]domain.SchemaRawWithSubject, 
 			log.Printf("Error getting latest schema: %v", err)
 			return nil, err
 		}
-		latestSchemas = append(latestSchemas, schema.Schema())
 		schemaWithSubject := domain.SchemaRawWithSubject{
 			Subject: subject,
 			Schema:  schema.Schema(),
