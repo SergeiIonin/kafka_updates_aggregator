@@ -55,8 +55,8 @@ func init() {
 	}
 
 	if _, err = kafkaClient.CreateTopics(context.Background(), &kafka.CreateTopicsRequest{
-		Addr: kafkaAddr,
-		Topics: topicConfigs,
+		Addr:         kafkaAddr,
+		Topics:       topicConfigs,
 		ValidateOnly: false,
 	},
 	); err != nil {

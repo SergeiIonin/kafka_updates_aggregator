@@ -4,6 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"kafka_updates_aggregator/domain"
+	"kafka_updates_aggregator/kafka_schemas_handler/keytypes"
+
 	"log"
 
 	"github.com/segmentio/kafka-go"
@@ -12,7 +14,6 @@ import (
 type KafkaSchemasHandler struct {
 	kafkaReader   *kafka.Reader
 	schemasWriter SchemasWriter
-	*KeyTypes
 }
 
 func NewKafkaSchemasHandler(kafkaBroker string, writer SchemasWriter) *KafkaSchemasHandler {
@@ -26,7 +27,6 @@ func NewKafkaSchemasHandler(kafkaBroker string, writer SchemasWriter) *KafkaSche
 	return &KafkaSchemasHandler{
 		kafkaReader:   kafkaReader,
 		schemasWriter: writer,
-		KeyTypes:      NewKeyTypes(),
 	}
 }
 
@@ -39,13 +39,13 @@ func (ksh *KafkaSchemasHandler) Run(ctx context.Context) {
 			return
 		}
 		log.Printf("[KafkaSchemasHandler] Received message with key: %v", string(msg.Key))
-		keytype, err := ksh.GetKeytype(msg.Key)
+		keytype, err := keytypes.GetKeytype(msg.Key)
 		if err != nil {
 			log.Printf("[KafkaSchemasHandler] error retrieving message key: %v", err)
 			continue
 		}
 		switch keytype {
-		case ksh.SCHEMA:
+		case keytypes.SCHEMA:
 			var schemaMsg SchemaMsg
 			err := json.Unmarshal(msg.Value, &schemaMsg)
 			log.Printf("[KafkaSchemasHandler] received new schema: %v", schemaMsg)
@@ -59,7 +59,7 @@ func (ksh *KafkaSchemasHandler) Run(ctx context.Context) {
 				continue
 			}
 			log.Printf("[KafkaSchemasHandler] Saved schema with id: %v", id)
-		case ksh.DELETE_SUBJECT:
+		case keytypes.DELETE_SUBJECT:
 			var deleteSubjectMsg DeleteSubjectMsg
 			err := json.Unmarshal(msg.Value, &deleteSubjectMsg)
 			log.Printf("[KafkaSchemasHandler] request to delete schema: %v", deleteSubjectMsg)
