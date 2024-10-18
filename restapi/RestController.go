@@ -23,12 +23,12 @@ func (rc *RestController) CreateSchema(c *gin.Context) {
 	var schemaDTO infra.SchemaDTO
 	err := c.ShouldBindJSON(&schemaDTO)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": fmt.Errorf("Error reading schema: %v", err).Error()})
+		c.JSON(http.StatusBadRequest, gin.H{"error": fmt.Errorf("error reading schema: %v", err).Error()})
 		return
 	}
 	id, err := rc.aggregationSchemasService.CreateAggregationSchema(schemaDTO)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": fmt.Errorf("Error creating schema: %v", err).Error()})
+		c.JSON(http.StatusBadRequest, gin.H{"error": fmt.Errorf("error creating schema: %v", err).Error()})
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"id": id})

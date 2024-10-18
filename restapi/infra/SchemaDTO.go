@@ -27,6 +27,7 @@ func (s SchemaDTO) ToJson() ([]byte, error) {
 	if err != nil {
 		log.Printf("Error marshalling SchemaDTO: %v", err)
 	}
+
 	return res, err
 }
 

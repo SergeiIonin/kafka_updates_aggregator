@@ -4,15 +4,13 @@ import (
 	"kafka_updates_aggregator/restapi/domain"
 	"kafka_updates_aggregator/restapi/infra"
 
-	"github.com/riferrei/srclient"
 )
 
 type SchemaAggregationService struct {
 	schemaManager *domain.SchemaManager
 }
 
-func NewSchemaAggregationService(schemaRegistryUrl string) *SchemaAggregationService {
-	schemaManager := domain.NewSchemaManager(infra.NewSchemaRegistryClientImpl(srclient.CreateSchemaRegistryClient(schemaRegistryUrl)))
+func NewSchemaAggregationService(schemaManager *domain.SchemaManager) *SchemaAggregationService {
 	return &SchemaAggregationService{
 		schemaManager: schemaManager,
 	}

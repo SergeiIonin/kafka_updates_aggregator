@@ -6,6 +6,11 @@ import (
 	restapiconfig "kafka_updates_aggregator/configs/restapi"
 	"kafka_updates_aggregator/restapi"
 	"kafka_updates_aggregator/restapi/application"
+	"kafka_updates_aggregator/restapi/domain"
+	"kafka_updates_aggregator/restapi/infra"
+	"github.com/riferrei/srclient"
+
+
 	"log"
 	"net/http"
 	"os"
@@ -55,7 +60,8 @@ func main() {
 	schemaRegistryUrl := conf.SchemaRegistryAddress
 	address := fmt.Sprintf("%s:%d", conf.Host, conf.Port)
 
-	aggregationSchemasService := application.NewSchemaAggregationService(schemaRegistryUrl)
+	schemaManager := domain.NewSchemaManager(infra.NewSchemaRegistryClientImpl(srclient.CreateSchemaRegistryClient(schemaRegistryUrl)))
+	aggregationSchemasService := application.NewSchemaAggregationService(schemaManager)  
 
 	rc := restapi.NewRestController(aggregationSchemasService)
 	router := gin.Default()
